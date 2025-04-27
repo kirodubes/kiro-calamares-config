@@ -1,0 +1,2 @@
+# Kiro Calamares configuration
+
