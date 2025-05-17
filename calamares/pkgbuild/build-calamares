@@ -2,32 +2,23 @@
 
 set -e
 
-PKG_DIR="/etc/calamares/pkgbuild"
-PKGBUILD="$PKG_DIR/PKGBUILD"
-
-# Format current date as YY.MM.DD (e.g., 25.05.22)
+SRC_DIR="/etc/calamares/pkgbuild"
+BUILD_DIR="/tmp/build-calamares"
 DATE_VER=$(date +%y.%m.%d)
-NEW_PKGREL="01"
+PKGREL="01"
 
-# Ensure PKGBUILD exists
-if [[ ! -f "$PKGBUILD" ]]; then
-    echo "Error: PKGBUILD not found at $PKGBUILD"
-    exit 1
-fi
+echo "Creating temporary build directory at $BUILD_DIR"
+rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
+cp -r "$SRC_DIR"/* "$BUILD_DIR"
 
-echo "Updating pkgver to $DATE_VER and pkgrel to $NEW_PKGREL..."
+cd "$BUILD_DIR"
 
-# Use sed to update pkgver and pkgrel in the PKGBUILD
-sed -i -E "s/^pkgver=.*/pkgver=$DATE_VER/" "$PKGBUILD"
-sed -i -E "s/^pkgrel=.*/pkgrel=$NEW_PKGREL/" "$PKGBUILD"
+echo "Setting pkgver=$DATE_VER and pkgrel=$PKGREL"
+sed -i -E "s/^pkgver=.*/pkgver=$DATE_VER/" PKGBUILD
+sed -i -E "s/^pkgrel=.*/pkgrel=$PKGREL/" PKGBUILD
 
-# Recompute prepare() path replacements if needed (not done here explicitly)
-
-# Change to package directory
-cd "$PKG_DIR"
-
-# Build package
-echo "Building the package..."
+echo "Building Calamares with makepkg..."
 makepkg -fsi --noconfirm
 
-echo "Calamares built and installed successfully."
+echo "Build and installation completed successfully."
