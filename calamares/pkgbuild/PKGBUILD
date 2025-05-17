@@ -115,7 +115,7 @@ build() {
 }
 
 package() {
-	cd ${_pkgname}-${pkgver}-${pkgrel}/build
+	cd ${_pkgname}/build
 	DESTDIR="${pkgdir}" cmake --build . --target install
 	install -Dm644 "$srcdir/cal-kiro.desktop" "$pkgdir/usr/share/applications/cal-kiro.desktop"
 	install -Dm644 "$srcdir/cal-kiro-debugging.desktop" "$pkgdir/usr/share/applications/cal-kiro-debugging.desktop"
