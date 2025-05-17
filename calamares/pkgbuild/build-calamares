@@ -2,10 +2,16 @@
 
 set -e
 
+BUILD_DIR="/tmp/build-calamares"
+
+if [[ -d "$BUILD_DIR" ]]; then
+    echo "Removing existing build directory: $BUILD_DIR"
+    rm -rf "$BUILD_DIR"
+fi
+
 sudo pacman -Syu
 
 SRC_DIR="/etc/calamares/pkgbuild"
-BUILD_DIR="/tmp/build-calamares"
 DATE_VER=$(date +%y.%m.%d)
 PKGREL="01"
 
