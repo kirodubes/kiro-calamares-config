@@ -69,11 +69,11 @@ prepare() {
 
 	cp -rv ../modules/* "${srcdir}/calamares/src/modules/"
 
-	sed -i -e 's/"Install configuration files" OFF/"Install configuration files" ON/' "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/CMakeLists.txt"
-	sed -i -e "s/desired_size = 512 \* 1024 \* 1024  \# 512MiB/desired_size = 512 \* 1024 \* 1024 \* 4  \# 2048MiB/" "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/src/modules/fstab/main.py"
+	#sed -i -e 's/"Install configuration files" OFF/"Install configuration files" ON/' "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/CMakeLists.txt"
+	#sed -i -e "s/desired_size = 512 \* 1024 \* 1024  \# 512MiB/desired_size = 512 \* 1024 \* 1024 \* 4  \# 2048MiB/" "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/src/modules/fstab/main.py"
 
-	cd ${_pkgname}-${pkgver}-${pkgrel}
-	sed -i -e "s|CALAMARES_VERSION 3.3.14|CALAMARES_VERSION $pkgver-$pkgrel|g" CMakeLists.txt
+	#cd ${_pkgname}-${pkgver}-${pkgrel}
+	#sed -i -e "s|CALAMARES_VERSION 3.3.14|CALAMARES_VERSION $pkgver-$pkgrel|g" CMakeLists.txt
 	#sed -i -e '/property real padding: 16;/d' "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/src/qml/calamares-qt5/slideshow/Presentation.qml"
 	#sed -i -e '/property real padding: 16;/d' "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/src/qml/calamares-qt6/slideshow/Presentation.qml"
 }
