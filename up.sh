@@ -5,6 +5,7 @@ workdir=$(pwd)
 
 rm -r calamares/pkgbuild/src
 rm -r calamares/pkgbuild/pkg
+rm calamares/pkgbuild/calamares-3*
 
 # Below command will backup everything inside the project folder
 git add --all .
