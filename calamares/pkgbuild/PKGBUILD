@@ -55,7 +55,7 @@ backup=('usr/share/calamares/modules/bootloader.conf'
         'usr/share/calamares/modules/initcpio.conf'
         'usr/share/calamares/modules/unpackfs.conf')
 
-source=("calamares::https://github.com/kirodubes/calamares/archive/refs/tags/$pkgver-$pkgrel.tar.gz"
+source=("calamares::git+https://github.com/kirodubes/calamares.git"
 	"cal-kiro.desktop"
 	"cal-kiro-debugging.desktop"
 	"calamares_polkit")
@@ -67,7 +67,7 @@ sha256sums=('6b418a64b62760a5dfbd752d8a96308481564c8ae17b7662aa2a572ed9e0dabb'
 
 prepare() {
 
-	cp -rv ../modules/* ${srcdir}/$_pkgname-${pkgver}-${pkgrel}/src/modules/
+	cp -rv ../modules/* "${srcdir}/calamares/src/modules/"
 
 	sed -i -e 's/"Install configuration files" OFF/"Install configuration files" ON/' "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/CMakeLists.txt"
 	sed -i -e "s/desired_size = 512 \* 1024 \* 1024  \# 512MiB/desired_size = 512 \* 1024 \* 1024 \* 4  \# 2048MiB/" "$srcdir/${_pkgname}-${pkgver}-${pkgrel}/src/modules/fstab/main.py"
