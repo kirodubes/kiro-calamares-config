@@ -2,6 +2,8 @@
 
 set -e
 
+sudo pacman -Syu
+
 SRC_DIR="/etc/calamares/pkgbuild"
 BUILD_DIR="/tmp/build-calamares"
 DATE_VER=$(date +%y.%m.%d)
