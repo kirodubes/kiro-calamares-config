@@ -79,7 +79,7 @@ prepare() {
 }
 
 build() {
-	cd $_pkgname-$pkgver-${pkgrel}
+	cd $_pkgname
 
     cmake -S . -Bbuild \
         -GNinja \
