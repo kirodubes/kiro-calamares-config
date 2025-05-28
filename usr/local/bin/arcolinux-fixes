@@ -1,0 +1,47 @@
+#!/bin/bash
+
+echo "#################################"
+echo "Start arcolinux-fixes"
+echo "#################################"
+
+desktop=$(ls /usr/share/xsessions)
+echo "#################################"
+echo "This is your current desktop file "$desktop
+echo "#################################"
+case $desktop in
+  ukui.desktop)
+  echo "Lightm is installed and active - go back to sddm"
+  pacman -S sddm --noconfirm --needed
+  systemctl enable sddm.service -f
+    ;;
+  deepin.desktop)
+  echo "Lightm is installed and active - go back to sddm"
+  pacman -S sddm --noconfirm --needed
+  systemctl enable sddm.service -f
+    ;;
+  *)
+    echo "Nothing to do"
+    ;;
+esac
+
+if [ -f /usr/bin/gdm ]; then
+  echo "Gdm is installed and active - making sure gdm stays active"
+  pacman -S gdm --noconfirm --needed
+  systemctl enable gdm.service -f
+fi
+
+if [ -f /usr/bin/startdde ]; then
+  echo "Lightdm is installed and active - go back to sddm"
+  pacman -S sddm --noconfirm --needed
+  systemctl enable sddm.service -f
+fi
+
+if [ -f /usr/bin/ukui-session ]; then
+  echo "Lightdm is installed and active - go back to sddm"
+  pacman -S sddm --noconfirm --needed
+  systemctl enable sddm.service -f
+fi
+
+echo "#################################"
+echo "End arcolinux-fixes"
+echo "#################################"
