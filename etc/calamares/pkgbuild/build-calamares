@@ -9,6 +9,9 @@ if [[ -d "$BUILD_DIR" ]]; then
     rm -rf "$BUILD_DIR"
 fi
 
+sudo pacman-key --init
+sudo pacman-key --populate
+
 sudo pacman -Syu
 
 SRC_DIR="/etc/calamares/pkgbuild"
