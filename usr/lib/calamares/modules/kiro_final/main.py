@@ -284,18 +284,18 @@ def run():
     except subprocess.CalledProcessError as e:
         libcalamares.utils.warning(f"Failed to remove xfce4-artwork: {e}")
 
-    # --- Remove kiro-calamares-config-next package ---
+    # --- Remove kiro-calamares-config package ---
     libcalamares.utils.debug("##############################################")
-    libcalamares.utils.debug("Removing kiro-calamares-config-next package")
+    libcalamares.utils.debug("Removing kiro-calamares-config package")
     libcalamares.utils.debug("##############################################\n")
     
     try:
         subprocess.run(
-            ["chroot", target_root, "pacman", "-R", "--noconfirm", "kiro-calamares-config-next"],
+            ["chroot", target_root, "pacman", "-R", "--noconfirm", "kiro-calamares-config"],
             check=True
         )
     except subprocess.CalledProcessError as e:
-        libcalamares.utils.warning(f"Failed to remove kiro-calamares-config-next: {e}")
+        libcalamares.utils.warning(f"Failed to remove kiro-calamares-config: {e}")
 
     libcalamares.utils.debug("##############################################")
     libcalamares.utils.debug("End kiro_final module")

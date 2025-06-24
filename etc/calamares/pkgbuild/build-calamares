@@ -1,35 +1,39 @@
 #!/bin/bash
+#https://wiki.archlinux.org/index.php/DeveloperWiki:Building_in_a_Clean_Chroot
 
-set -e
+destiny="/home/erik/KIRO/kiro_repo/x86_64/"
 
-BUILD_DIR="/tmp/build-calamares"
+search1="calamares"
+search=$search1
 
-if [[ -d "$BUILD_DIR" ]]; then
-    echo "Removing existing build directory: $BUILD_DIR"
-    rm -rf "$BUILD_DIR"
-fi
+tput setaf 2
+echo "#############################################################################################"
+echo "#########        Let us build the package "$(basename `pwd`)
+echo "#############################################################################################"
+tput sgr0
 
-sudo pacman-key --init
-sudo pacman-key --populate
+updpkgsums
 
-sudo pacman -Syu
+makepkg -s
 
-SRC_DIR="/etc/calamares/pkgbuild"
-DATE_VER=$(date +%y.%m.%d)
-PKGREL="01"
+echo "Moving created files to " $destiny
+echo "#############################################################################################"
+mv $search*pkg.tar.zst $destiny
 
-echo "Creating temporary build directory at $BUILD_DIR"
-rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR"
-cp -r "$SRC_DIR"/* "$BUILD_DIR"
+echo "Cleaning up"
+echo "#############################################################################################"
+echo "deleting unnecessary folders"
+echo "#############################################################################################"
 
-cd "$BUILD_DIR"
+rm -rf pkg src
 
-echo "Setting pkgver=$DATE_VER and pkgrel=$PKGREL"
-sed -i -E "s/^pkgver=.*/pkgver=$DATE_VER/" PKGBUILD
-sed -i -E "s/^pkgrel=.*/pkgrel=$PKGREL/" PKGBUILD
+echo "deleting unnecessary files"
+echo "#############################################################################################"
 
-echo "Building Calamares with makepkg..."
-makepkg -fsi --noconfirm
+rm -rf calamares
 
-echo "Build and installation completed successfully."
+tput setaf 8
+echo "#############################################################################################"
+echo "###################                       build done                   ######################"
+echo "#############################################################################################"
+tput sgr0
