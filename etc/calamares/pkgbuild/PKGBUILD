@@ -1,4 +1,4 @@
-pkgname=calamares-next
+pkgname=calamares
 _pkgname=calamares
 # change number in prepare as well
 pkgver=3.3.14.r39.g274996f  # placeholder; will be auto-generated
