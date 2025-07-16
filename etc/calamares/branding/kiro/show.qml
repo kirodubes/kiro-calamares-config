@@ -36,7 +36,7 @@ Presentation
             source: "01cal.jpg"
             width: parent.width; height: parent.height
             verticalAlignment: Image.AlignTop
-            fillMode: Image.PreserveAspectCrop
+            fillMode: Image.PreserveAspectFit
             anchors.fill: parent
         }
 
@@ -51,7 +51,21 @@ Presentation
             source: "02cal.jpg"
             width: parent.width; height: parent.height
             verticalAlignment: Image.AlignTop
-            fillMode: Image.PreserveAspectCrop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background3
+            source: "03cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
             anchors.fill: parent
         }
 
@@ -62,10 +76,122 @@ Presentation
         anchors.verticalCenterOffset: 0
         Image {
             id: background4
-            source: "03cal.jpg"
+            source: "04cal.jpg"
             width: parent.width; height: parent.height
             verticalAlignment: Image.AlignTop
-            fillMode: Image.PreserveAspectCrop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background5
+            source: "05cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background6
+            source: "06cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background7
+            source: "07cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background8
+            source: "08cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background9
+            source: "09cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background10
+            source: "10cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background11
+            source: "11cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
+            anchors.fill: parent
+        }
+
+    }
+
+    Slide {
+        anchors.fill: parent
+        anchors.verticalCenterOffset: 0
+        Image {
+            id: background12
+            source: "12cal.jpg"
+            width: parent.width; height: parent.height
+            verticalAlignment: Image.AlignTop
+            fillMode: Image.PreserveAspectFit
             anchors.fill: parent
         }
 
