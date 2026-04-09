@@ -1,14 +1,14 @@
 pkgname=calamares
 _pkgname=calamares
 # change number in prepare as well
-pkgver=3.3.14.r87.g3f6cd83  # placeholder; will be auto-generated
-pkgrel=1
+pkgver=3.3.14.r132.g841b478  # placeholder; will be auto-generated
+pkgrel=3
 pkgdesc='Distribution-independent installer framework - latest git version'
 arch=('i686' 'x86_64')
 url="https://codeberg.org/erikdubois/calamares"
 license=('LGPL')
-conflicts=('calamares-next' 'calamares-git')
-provides=('calamares')
+conflicts=('calamares' 'calamares-git')
+provides=('calamares-next')
 depends=(
 	'boost-libs'
 	'ckbcomp'
@@ -115,8 +115,7 @@ package() {
 	DESTDIR="$pkgdir" cmake --install .
 
 	install -Dm644 "$srcdir/cal-kiro.desktop" "$pkgdir/usr/share/applications/cal-kiro.desktop"
-	install -Dm755 "$srcdir/cal-kiro.desktop" "$pkgdir/home/liveuser/Desktop/cal-kiro.desktop"
-	chmod +x "$pkgdir/home/liveuser/Desktop/cal-kiro.desktop"
+	install -Dm644 "$srcdir/cal-kiro.desktop" "$pkgdir/home/liveuser/Desktop/cal-kiro.desktop"
 
 	install -Dm644 "$srcdir/calamares-wrapper" "$pkgdir/usr/local/bin/calamares-wrapper"
 	chmod +x "$pkgdir/usr/local/bin/calamares-wrapper"

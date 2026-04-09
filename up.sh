@@ -24,9 +24,13 @@ set -eo pipefail
 #tput setaf 8 = light blue
 ##################################################################################################################
 
+echo "Remember to change the pkgbuild for calamares if needed"
+
+sleep 3
+
 # variables and functions
 workdir=$(pwd)
-dir="calamares-3.3.14.r87.g3f6cd83-1"
+dir="calamares-3.3.14.r132.g841b478-3"
 source="/home/erik/KIRO/kiro-pkgbuild/"
 destiny="/home/erik/KIRO/kiro-calamares-config/etc/calamares/pkgbuild/"
 
