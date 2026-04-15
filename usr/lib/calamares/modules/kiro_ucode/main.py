@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Calamares module for CPU microcode package management.
-Detects CPU vendor and removes mismatched microcode packages.
+Calamares module for CPU microcode package installation.
+Detects CPU vendor and installs appropriate microcode package from /etc/calamares/packages.
 """
 
 import libcalamares
 import subprocess
+import os
+import glob
 from libcalamares.utils import target_env_call
 
 
@@ -34,17 +36,45 @@ class ConfigController:
             libcalamares.utils.warning(f"Failed to detect CPU vendor: {e}")
             return None
 
+    def find_package_file(self, package_name):
+        """Find package file in /etc/calamares/packages directory."""
+        packages_dir = os.path.join(self.root, "etc/calamares/packages")
+        pattern = os.path.join(packages_dir, f"{package_name}-*.pkg.tar.zst")
+
+        files = glob.glob(pattern)
+        if files:
+            return files[0]
+        return None
+
+    def install_ucode_package(self, package_name):
+        """Install microcode package from /etc/calamares/packages."""
+        package_file = self.find_package_file(package_name)
+
+        if not package_file:
+            libcalamares.utils.warning(f"Package file not found for {package_name}")
+            return False
+
+        libcalamares.utils.debug(f"Installing {package_name} from {package_file}")
+        try:
+            target_env_call(["pacman", "-U", package_file, "--noconfirm"])
+            libcalamares.utils.debug(f"Successfully installed {package_name}")
+            return True
+        except Exception as e:
+            libcalamares.utils.warning(f"Failed to install {package_name}: {e}")
+            return False
+
     def handle_ucode(self):
-        """Remove mismatched microcode package based on detected CPU vendor."""
+        """Install appropriate microcode package based on detected CPU vendor."""
         vendor = self.detect_cpu_vendor()
+
         if vendor == "AuthenticAMD":
-            libcalamares.utils.debug("Removing intel-ucode for AMD CPU.")
-            target_env_call(["pacman", "-R", "intel-ucode", "--noconfirm"])
+            libcalamares.utils.debug("Installing amd-ucode for AMD CPU.")
+            self.install_ucode_package("amd-ucode")
         elif vendor == "GenuineIntel":
-            libcalamares.utils.debug("Removing amd-ucode for Intel CPU.")
-            target_env_call(["pacman", "-R", "amd-ucode", "--noconfirm"])
+            libcalamares.utils.debug("Installing intel-ucode for Intel CPU.")
+            self.install_ucode_package("intel-ucode")
         else:
-            libcalamares.utils.debug("Unknown CPU vendor or detection failed.")
+            libcalamares.utils.debug("Unknown CPU vendor or detection failed. Skipping microcode installation.")
 
     def run(self):
         """Execute microcode configuration."""
@@ -60,7 +90,7 @@ def run():
 
     libcalamares.utils.debug("This module will perform the following operations:")
     libcalamares.utils.debug("  1. Detect CPU vendor (AuthenticAMD or GenuineIntel)")
-    libcalamares.utils.debug("  2. Remove mismatched microcode package (amd-ucode or intel-ucode)\n")
+    libcalamares.utils.debug("  2. Install appropriate microcode package from /etc/calamares/packages\n")
 
     results = {}
     config = ConfigController()
