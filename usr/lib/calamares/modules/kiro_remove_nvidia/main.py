@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
+"""
+Calamares module for conditional NVIDIA driver removal.
+Removes NVIDIA packages based on kernel cmdline 'driver' parameter.
+"""
 
 import os
 import time
 import subprocess
 import libcalamares
 from libcalamares.utils import check_target_env_call
+
 
 def kernel_cmdline(param_name, default=None):
     """Parse /proc/cmdline for a parameter value."""
@@ -68,9 +73,15 @@ def remove_nvidia_packages_from_target():
     return None
 
 def run():
-    libcalamares.utils.debug("#################################")
+    """Execute NVIDIA package removal based on kernel cmdline parameter."""
+    libcalamares.utils.debug("##############################################")
     libcalamares.utils.debug("Start kiro_remove_nvidia")
-    libcalamares.utils.debug("#################################\n")
+    libcalamares.utils.debug("##############################################\n")
+
+    libcalamares.utils.debug("This module will perform the following operations:")
+    libcalamares.utils.debug("  1. Read kernel cmdline 'driver' parameter")
+    libcalamares.utils.debug("  2. Wait for pacman lock to be released")
+    libcalamares.utils.debug("  3. Remove NVIDIA packages if driver=free is set\n")
 
     selection = kernel_cmdline("driver", default="free")
     libcalamares.utils.debug(f"Kernel parameter 'driver' = {selection}")
@@ -88,8 +99,8 @@ def run():
     else:
         libcalamares.utils.debug("Skipping NVIDIA removal because 'driver=free' not set.")
 
-    libcalamares.utils.debug("#################################")
+    libcalamares.utils.debug("##############################################")
     libcalamares.utils.debug("End kiro_remove_nvidia")
-    libcalamares.utils.debug("#################################\n")
+    libcalamares.utils.debug("##############################################\n")
 
     return None
