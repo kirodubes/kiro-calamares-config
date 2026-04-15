@@ -82,7 +82,9 @@ if ! [ -d "$destiny" ]; then
     mkdir "$destiny"
 fi
 
-cp -r $source$dir/* $destiny
+count=$(find "$source$dir" -maxdepth 1 -mindepth 1 | wc -l)
+cp -r "$source$dir/"* "$destiny"
+echo "Copied $count items to $destiny"
 
 ##################################################################################################################
 # Download ucode packages to /etc/calamares/packages
