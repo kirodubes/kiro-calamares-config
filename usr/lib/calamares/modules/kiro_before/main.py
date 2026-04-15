@@ -68,6 +68,14 @@ def optimize_makepkg_conf():
 
 # === Initialize pacman keys ===
 def initialize_pacman_keys():
+    target_root = libcalamares.globalstorage.value("rootMountPoint")
+    keyring_path = os.path.join(target_root, "etc/pacman.d/gnupg/pubring.gpg")
+
+    # Skip if keyring already exists (ISO has pre-initialized keys)
+    if os.path.exists(keyring_path):
+        libcalamares.utils.debug("-> Pacman keyring already initialized. Skipping.")
+        return None
+
     libcalamares.utils.debug("-> Initializing pacman-key and populating keys...")
     try:
         check_target_env_call(["pacman-key", "--init"])
