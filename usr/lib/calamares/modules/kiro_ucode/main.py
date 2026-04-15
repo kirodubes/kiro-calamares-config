@@ -37,8 +37,8 @@ class ConfigController:
             return None
 
     def find_package_file(self, package_name):
-        """Find package file in /etc/calamares/packages directory."""
-        packages_dir = os.path.join(self.root, "etc/calamares/packages")
+        """Find package file in /etc/calamares/packages directory on live DVD."""
+        packages_dir = "/etc/calamares/packages"
         pattern = os.path.join(packages_dir, f"{package_name}-*.pkg.tar.zst")
 
         files = glob.glob(pattern)
@@ -47,7 +47,7 @@ class ConfigController:
         return None
 
     def install_ucode_package(self, package_name):
-        """Install microcode package from /etc/calamares/packages."""
+        """Install microcode package from /etc/calamares/packages on live DVD."""
         package_file = self.find_package_file(package_name)
 
         if not package_file:
