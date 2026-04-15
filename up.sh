@@ -34,6 +34,44 @@ dir="calamares-3.3.14.r132.g841b478-3"
 source="/home/erik/KIRO/kiro-pkgbuild/"
 destiny="/home/erik/KIRO/kiro-calamares-config/etc/calamares/pkgbuild/"
 
+# Function to compare package versions
+compare_versions() {
+    local pkg_name=$1
+    local packages_dir=$2
+
+    # Get latest version from pacman repo
+    latest_version=$(pacman -Si "$pkg_name" 2>/dev/null | grep "^Version" | awk '{print $3}')
+
+    if [ -z "$latest_version" ]; then
+        echo "Could not determine latest version for $pkg_name"
+        return 1
+    fi
+
+    # Find existing package file
+    existing_file=$(ls "$packages_dir"/"$pkg_name"-*.pkg.tar.zst 2>/dev/null | head -1)
+
+    if [ -z "$existing_file" ]; then
+        # No existing file, download is needed
+        return 0
+    fi
+
+    # Extract version from existing filename (format: name-version-release-arch.pkg.tar.zst)
+    existing_version=$(basename "$existing_file" | sed "s/^$pkg_name-//;s/-[^-]*-[^-]*\.pkg\.tar\.zst$//" | sed 's/-[0-9]*$//')
+
+    # Compare versions using vercmp
+    result=$(vercmp "$latest_version" "$existing_version" 2>/dev/null || echo "0")
+
+    if [ "$result" -gt 0 ]; then
+        # New version is newer, download needed
+        echo "$pkg_name: newer version available ($existing_version → $latest_version)"
+        return 0
+    else
+        # Current version is up to date
+        echo "$pkg_name: already up to date ($existing_version)"
+        return 1
+    fi
+}
+
 ##################################################################################################################
 
 if [ -d "$destiny" ]; then
@@ -50,7 +88,7 @@ cp -rv $source$dir/* $destiny
 # Download ucode packages to /etc/calamares/packages
 ##################################################################################################################
 
-echo "Downloading intel-ucode and amd-ucode packages..."
+echo "Checking ucode packages..."
 
 packages_dir="etc/calamares/packages"
 
@@ -59,10 +97,22 @@ if ! [ -d "$packages_dir" ]; then
     mkdir -p "$packages_dir"
 fi
 
-# Download packages to the directory
-sudo pacman -Sw --cachedir "$packages_dir" --noconfirm intel-ucode amd-ucode
+# Check and download packages if newer versions are available
+packages_to_download=""
 
-echo "Packages downloaded to $packages_dir"
+for pkg in intel-ucode amd-ucode; do
+    if compare_versions "$pkg" "$packages_dir"; then
+        packages_to_download="$packages_to_download $pkg"
+    fi
+done
+
+if [ -n "$packages_to_download" ]; then
+    echo "Downloading newer versions:$packages_to_download"
+    sudo pacman -Sw --cachedir "$packages_dir" --noconfirm $packages_to_download
+    echo "Packages downloaded to $packages_dir"
+else
+    echo "All packages are up to date. Keeping existing files."
+fi
 
 ##################################################################################################################
 
