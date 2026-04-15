@@ -46,6 +46,26 @@ fi
 
 cp -rv $source$dir/* $destiny
 
+##################################################################################################################
+# Download ucode packages to /etc/calamares/packages
+##################################################################################################################
+
+echo "Downloading intel-ucode and amd-ucode packages..."
+
+packages_dir="etc/calamares/packages"
+
+# Create packages directory if it doesn't exist
+if ! [ -d "$packages_dir" ]; then
+    mkdir -p "$packages_dir"
+fi
+
+# Download packages to the directory
+sudo pacman -Sw --cachedir "$packages_dir" --noconfirm intel-ucode amd-ucode
+
+echo "Packages downloaded to $packages_dir"
+
+##################################################################################################################
+
 # Below command will backup everything inside the project folder
 git add --all .
 
