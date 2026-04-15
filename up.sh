@@ -82,7 +82,7 @@ if ! [ -d "$destiny" ]; then
     mkdir "$destiny"
 fi
 
-cp -rv $source$dir/* $destiny
+cp -r $source$dir/* $destiny
 
 ##################################################################################################################
 # Download ucode packages to /etc/calamares/packages
