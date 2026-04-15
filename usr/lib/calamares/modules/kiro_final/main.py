@@ -108,6 +108,7 @@ def run():
     libcalamares.utils.debug("  9. Remove installer package (kiro-calamares-config)\n")
 
     target_root = libcalamares.globalstorage.value("rootMountPoint")
+    results = {}
 
     # ========================
     # File System Configuration
@@ -123,8 +124,10 @@ def run():
             shutil.chown(polkit_rules, group="polkitd")
         except LookupError:
             libcalamares.utils.warning("Group 'polkitd' not found; skipping chown.")
+        results["Set security directory permissions"] = "SUCCESS"
     except Exception as e:
         libcalamares.utils.warning(f"Failed to set permissions: {e}")
+        results["Set security directory permissions"] = "FAILED"
 
     # Copy skeleton files to root home
     libcalamares.utils.debug("Copying /etc/skel to /root")
@@ -132,29 +135,38 @@ def run():
         skel = os.path.join(target_root, "etc/skel")
         root_home = os.path.join(target_root, "root")
         shutil.copytree(skel, root_home, dirs_exist_ok=True)
+        results["Copy /etc/skel to /root"] = "SUCCESS"
     except Exception as e:
         libcalamares.utils.warning(f"Failed to copy /etc/skel to /root: {e}")
+        results["Copy /etc/skel to /root"] = "FAILED"
 
     # Set root home permissions
     try:
         os.chmod(os.path.join(target_root, "root"), 0o700)
+        results["Set /root permissions"] = "SUCCESS"
     except Exception as e:
         libcalamares.utils.warning(f"Failed to set /root permissions: {e}")
+        results["Set /root permissions"] = "FAILED"
 
     # ========================
     # Cleanup Installation Files
     # ========================
 
     libcalamares.utils.debug("Removing unnecessary files and folders")
-    paths_to_remove = [
-        "etc/sudoers.d/g_wheel",
-        "etc/polkit-1/rules.d/49-nopasswd_global.rules",
-        "root/.automated_script.sh",
-        "root/.zlogin",
-        "etc/systemd/system/getty@tty1.service.d",  # Autologin cleanup
-    ]
-    for rel_path in paths_to_remove:
-        remove_path(os.path.join(target_root, rel_path))
+    try:
+        paths_to_remove = [
+            "etc/sudoers.d/g_wheel",
+            "etc/polkit-1/rules.d/49-nopasswd_global.rules",
+            "root/.automated_script.sh",
+            "root/.zlogin",
+            "etc/systemd/system/getty@tty1.service.d",  # Autologin cleanup
+        ]
+        for rel_path in paths_to_remove:
+            remove_path(os.path.join(target_root, rel_path))
+        results["Remove installation files"] = "SUCCESS"
+    except Exception as e:
+        libcalamares.utils.warning(f"Failed to remove installation files: {e}")
+        results["Remove installation files"] = "FAILED"
 
     # ========================
     # System Configuration
@@ -162,92 +174,107 @@ def run():
 
     # Configure shell environment
     libcalamares.utils.debug("Configuring system environment")
-    profile_path = os.path.join(target_root, "etc/profile")
     try:
+        profile_path = os.path.join(target_root, "etc/profile")
         with open(profile_path, "a") as profile:
             profile.write("\nEDITOR=nano\n")
+        results["Configure system environment"] = "SUCCESS"
     except Exception as e:
         libcalamares.utils.warning(f"Failed to write to /etc/profile: {e}")
+        results["Configure system environment"] = "FAILED"
 
     # Configure Bluetooth and PulseAudio
     libcalamares.utils.debug("Configuring Bluetooth and audio")
-    bt_conf = os.path.join(target_root, "etc/bluetooth/main.conf")
-    pa_conf = os.path.join(target_root, "etc/pulse/default.pa")
-
-    subprocess.run(
-        ["sed", "-i", "s|#AutoEnable=true|AutoEnable=true|g", bt_conf],
-        check=False
-    )
     try:
+        bt_conf = os.path.join(target_root, "etc/bluetooth/main.conf")
+        pa_conf = os.path.join(target_root, "etc/pulse/default.pa")
+
+        subprocess.run(
+            ["sed", "-i", "s|#AutoEnable=true|AutoEnable=true|g", bt_conf],
+            check=False
+        )
         with open(pa_conf, "a") as pa:
             pa.write("\nload-module module-switch-on-connect\n")
+        results["Configure Bluetooth and PulseAudio"] = "SUCCESS"
     except Exception as e:
-        libcalamares.utils.warning(f"Failed to configure PulseAudio: {e}")
+        libcalamares.utils.warning(f"Failed to configure audio services: {e}")
+        results["Configure Bluetooth and PulseAudio"] = "FAILED"
 
     # ========================
     # Bootloader Configuration
     # ========================
 
     libcalamares.utils.debug("Checking bootloader configuration")
-    loader_conf = os.path.join(target_root, "boot/efi/loader/loader.conf")
-    if os.path.exists(loader_conf):
-        # systemd-boot is in use, remove GRUB
-        libcalamares.utils.debug("systemd-boot detected. Removing GRUB")
-        try:
-            if is_package_installed("grub", target_root):
-                subprocess.run(
-                    ["chroot", target_root, "pacman", "-R", "--noconfirm", "grub"],
-                    check=True
-                )
-        except Exception as e:
-            libcalamares.utils.warning(f"Failed to remove GRUB: {e}")
+    try:
+        loader_conf = os.path.join(target_root, "boot/efi/loader/loader.conf")
+        if os.path.exists(loader_conf):
+            # systemd-boot is in use, remove GRUB
+            libcalamares.utils.debug("systemd-boot detected. Removing GRUB")
+            try:
+                if is_package_installed("grub", target_root):
+                    subprocess.run(
+                        ["chroot", target_root, "pacman", "-R", "--noconfirm", "grub"],
+                        check=True
+                    )
+            except Exception as e:
+                libcalamares.utils.warning(f"Failed to remove GRUB: {e}")
 
-        remove_path(os.path.join(target_root, "boot/grub"))
+            remove_path(os.path.join(target_root, "boot/grub"))
 
-        # Remove GRUB configuration files
-        try:
-            grub_defaults_dir = os.path.join(target_root, "etc/default")
-            grub_files = [f for f in os.listdir(grub_defaults_dir) if f.startswith("grub")]
-            for grub_file in grub_files:
-                remove_path(os.path.join(grub_defaults_dir, grub_file))
-        except Exception as e:
-            libcalamares.utils.warning(f"Failed to remove GRUB defaults: {e}")
+            # Remove GRUB configuration files
+            try:
+                grub_defaults_dir = os.path.join(target_root, "etc/default")
+                grub_files = [f for f in os.listdir(grub_defaults_dir) if f.startswith("grub")]
+                for grub_file in grub_files:
+                    remove_path(os.path.join(grub_defaults_dir, grub_file))
+            except Exception as e:
+                libcalamares.utils.warning(f"Failed to remove GRUB defaults: {e}")
+        results["Configure bootloader"] = "SUCCESS"
+    except Exception as e:
+        libcalamares.utils.warning(f"Failed to configure bootloader: {e}")
+        results["Configure bootloader"] = "FAILED"
 
     # ========================
     # Virtual Machine Cleanup
     # ========================
 
     libcalamares.utils.debug("Checking for virtual machine environment")
-    wait_for_pacman_lock(target_root)
+    try:
+        wait_for_pacman_lock(target_root)
 
-    vm_type = detect_virtualization(target_root)
-    libcalamares.utils.debug(f"Virtualization type: {vm_type}")
+        vm_type = detect_virtualization(target_root)
+        libcalamares.utils.debug(f"Virtualization type: {vm_type}")
 
-    # VMware cleanup (applies to oracle, kvm, vmware, none)
-    if vm_type in ["oracle", "kvm", "vmware", "none"]:
-        remove_path(os.path.join(target_root, "etc/xdg/autostart/vmware-user.desktop"))
-        if is_package_installed("open-vm-tools", target_root):
-            chroot_disable_service(target_root, "vmtoolsd.service")
-            chroot_disable_service(target_root, "vmware-vmblock-fuse.service")
-            chroot_pacman_remove(target_root, ["open-vm-tools"])
-        if is_package_installed("xf86-video-vmware", target_root):
-            chroot_pacman_remove(target_root, ["xf86-video-vmware"])
-        remove_path(
-            os.path.join(target_root, "etc/systemd/system/multi-user.target.wants/vmtoolsd.service")
-        )
+        # VMware cleanup (applies to oracle, kvm, vmware, none)
+        if vm_type in ["oracle", "kvm", "vmware", "none"]:
+            remove_path(os.path.join(target_root, "etc/xdg/autostart/vmware-user.desktop"))
+            if is_package_installed("open-vm-tools", target_root):
+                chroot_disable_service(target_root, "vmtoolsd.service")
+                chroot_disable_service(target_root, "vmware-vmblock-fuse.service")
+                chroot_pacman_remove(target_root, ["open-vm-tools"])
+            if is_package_installed("xf86-video-vmware", target_root):
+                chroot_pacman_remove(target_root, ["xf86-video-vmware"])
+            remove_path(
+                os.path.join(target_root, "etc/systemd/system/multi-user.target.wants/vmtoolsd.service")
+            )
 
-    # QEMU cleanup (applies to oracle, vmware, none)
-    if vm_type in ["oracle", "vmware", "none"]:
-        if is_package_installed("qemu-guest-agent", target_root):
-            chroot_disable_service(target_root, "qemu-guest-agent.service")
-            chroot_pacman_remove(target_root, ["qemu-guest-agent"])
+        # QEMU cleanup (applies to oracle, vmware, none)
+        if vm_type in ["oracle", "vmware", "none"]:
+            if is_package_installed("qemu-guest-agent", target_root):
+                chroot_disable_service(target_root, "qemu-guest-agent.service")
+                chroot_pacman_remove(target_root, ["qemu-guest-agent"])
 
-    # VirtualBox cleanup (applies to kvm, vmware, none)
-    if vm_type in ["kvm", "vmware", "none"]:
-        for vbox_pkg in ["virtualbox-guest-utils", "virtualbox-guest-utils-nox"]:
-            if is_package_installed(vbox_pkg, target_root):
-                chroot_disable_service(target_root, "vboxservice.service")
-                chroot_pacman_remove(target_root, [vbox_pkg])
+        # VirtualBox cleanup (applies to kvm, vmware, none)
+        if vm_type in ["kvm", "vmware", "none"]:
+            for vbox_pkg in ["virtualbox-guest-utils", "virtualbox-guest-utils-nox"]:
+                if is_package_installed(vbox_pkg, target_root):
+                    chroot_disable_service(target_root, "vboxservice.service")
+                    chroot_pacman_remove(target_root, [vbox_pkg])
+
+        results["Virtual machine cleanup"] = "SUCCESS"
+    except Exception as e:
+        libcalamares.utils.warning(f"Failed during VM cleanup: {e}")
+        results["Virtual machine cleanup"] = "FAILED"
 
     # ========================
     # Final Cleanup
@@ -259,11 +286,15 @@ def run():
             ["chroot", target_root, "pacman", "-R", "--noconfirm", "kiro-calamares-config"],
             check=True
         )
+        results["Remove installer package"] = "SUCCESS"
     except subprocess.CalledProcessError as e:
         libcalamares.utils.warning(f"Failed to remove kiro-calamares-config: {e}")
+        results["Remove installer package"] = "FAILED"
 
     libcalamares.utils.debug("##############################################")
-    libcalamares.utils.debug("End kiro_final module")
+    libcalamares.utils.debug("End kiro_final module - Function Results:")
+    for func_name, status in results.items():
+        libcalamares.utils.debug(f"  {func_name}: {status}")
     libcalamares.utils.debug("##############################################\n")
 
     return None

@@ -62,11 +62,16 @@ def run():
     libcalamares.utils.debug("  1. Detect CPU vendor (AuthenticAMD or GenuineIntel)")
     libcalamares.utils.debug("  2. Remove mismatched microcode package (amd-ucode or intel-ucode)\n")
 
+    results = {}
     config = ConfigController()
     result = config.run()
 
+    results["Handle microcode"] = "SUCCESS" if result is None else "FAILED"
+
     libcalamares.utils.debug("##############################################")
-    libcalamares.utils.debug("End kiro_ucode")
+    libcalamares.utils.debug("End kiro_ucode - Function Results:")
+    for func_name, status in results.items():
+        libcalamares.utils.debug(f"  {func_name}: {status}")
     libcalamares.utils.debug("##############################################\n")
 
     return result

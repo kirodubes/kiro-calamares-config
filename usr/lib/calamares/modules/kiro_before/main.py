@@ -128,16 +128,24 @@ def run():
     libcalamares.utils.debug("  3. Move mkinitcpio kiro preset to linux.preset")
     libcalamares.utils.debug("  4. Optimize makepkg.conf (MAKEFLAGS, PKGEXT, OPTIONS)\n")
 
-    for step_func in [
-        wait_for_pacman_lock,
-        initialize_pacman_keys,
-        move_mkinitcpio_preset,
-        optimize_makepkg_conf
-    ]:
+    functions = [
+        ("Wait for pacman lock", wait_for_pacman_lock),
+        ("Initialize pacman keys", initialize_pacman_keys),
+        ("Move mkinitcpio preset", move_mkinitcpio_preset),
+        ("Optimize makepkg.conf", optimize_makepkg_conf)
+    ]
+
+    results = {}
+    for func_name, step_func in functions:
         error = step_func()
         if error:
+            results[func_name] = "FAILED"
             return error
+        results[func_name] = "SUCCESS"
+
     libcalamares.utils.debug("##############################################")
-    libcalamares.utils.debug("End kiro_before")
+    libcalamares.utils.debug("End kiro_before - Function Results:")
+    for func_name, status in results.items():
+        libcalamares.utils.debug(f"  {func_name}: {status}")
     libcalamares.utils.debug("##############################################\n")
     return None
