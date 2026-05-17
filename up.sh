@@ -110,6 +110,9 @@ done
 
 if [ -n "$packages_to_download" ]; then
     echo "Downloading newer versions:$packages_to_download"
+    for pkg in $packages_to_download; do
+        rm -f "$packages_dir"/"$pkg"-*.pkg.tar.zst "$packages_dir"/"$pkg"-*.pkg.tar.zst.sig
+    done
     sudo pacman -Sw --cachedir "$packages_dir" --noconfirm $packages_to_download
     echo "Packages downloaded to $packages_dir"
 else
