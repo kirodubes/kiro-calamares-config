@@ -1,142 +1,146 @@
 #!/bin/bash
-set -eo pipefail
-##################################################################################################################
+set -euo pipefail
+#####################################################################
 # Author    : Erik Dubois
 # Website   : https://www.erikdubois.be
-# Youtube   : https://youtube.com/erikdubois
-# Github    : https://github.com/erikdubois
-# Github    : https://github.com/kirodubes
-# Github    : https://github.com/buildra
-# SF        : https://sourceforge.net/projects/kiro/files/
-##################################################################################################################
+#####################################################################
 #
 #   DO NOT JUST RUN THIS. EXAMINE AND JUDGE. RUN AT YOUR OWN RISK.
 #
-##################################################################################################################
-#tput setaf 0 = black
-#tput setaf 1 = red
-#tput setaf 2 = green
-#tput setaf 3 = yellow
-#tput setaf 4 = dark blue
-#tput setaf 5 = purple
-#tput setaf 6 = cyan
-#tput setaf 7 = gray
-#tput setaf 8 = light blue
-##################################################################################################################
+#####################################################################
 
-echo "Remember to change the pkgbuild for calamares if needed"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-sleep 3
+#####################################################################
+# Colors
+#####################################################################
+if command -v tput >/dev/null 2>&1 && [[ -t 1 ]]; then
+    RED="$(tput setaf 1)"
+    GREEN="$(tput setaf 2)"
+    YELLOW="$(tput setaf 3)"
+    BLUE="$(tput setaf 4)"
+    CYAN="$(tput setaf 6)"
+    RESET="$(tput sgr0)"
+else
+    RED="" GREEN="" YELLOW="" BLUE="" CYAN="" RESET=""
+fi
 
-# variables and functions
-workdir=$(pwd)
-dir="calamares-3.3.14.r132.g841b478-3"
-source="/home/erik/KIRO/kiro-pkgbuild/"
-destiny="/home/erik/KIRO/kiro-calamares-config/etc/calamares/pkgbuild/"
+#####################################################################
+# Logging
+#####################################################################
+log_section() {
+    echo
+    echo "${GREEN}############################################################################${RESET}"
+    echo "$1"
+    echo "${GREEN}############################################################################${RESET}"
+    echo
+}
 
-# Function to compare package versions
-compare_versions() {
-    local pkg_name=$1
-    local packages_dir=$2
+log_info() {
+    echo
+    echo "${BLUE}############################################################################${RESET}"
+    echo "$1"
+    echo "${BLUE}############################################################################${RESET}"
+    echo
+}
 
-    # Get latest version from pacman repo
-    latest_version=$(pacman -Si "$pkg_name" 2>/dev/null | grep "^Version" | awk '{print $3}')
+log_warn() {
+    echo
+    echo "${YELLOW}############################################################################${RESET}"
+    echo "$1"
+    echo "${YELLOW}############################################################################${RESET}"
+    echo
+}
 
-    if [ -z "$latest_version" ]; then
-        echo "Could not determine latest version for $pkg_name"
-        return 1
-    fi
+log_error() {
+    echo
+    echo "${RED}############################################################################${RESET}"
+    echo "$1"
+    echo "${RED}############################################################################${RESET}"
+    echo
+}
 
-    # Find existing package file
-    existing_file=$(ls "$packages_dir"/"$pkg_name"-*.pkg.tar.zst 2>/dev/null | head -1)
+log_success() {
+    echo
+    echo "${GREEN}############################################################################${RESET}"
+    echo "$1"
+    echo "${GREEN}############################################################################${RESET}"
+    echo
+}
 
-    if [ -z "$existing_file" ]; then
-        # No existing file, download is needed
-        return 0
-    fi
+#####################################################################
+# Error handling
+#####################################################################
+on_error() {
+    local lineno="$1"
+    local cmd="$2"
+    echo
+    echo "${RED}ERROR on line ${lineno}: ${cmd}${RESET}"
+    echo
+    sleep 10
+}
 
-    # Extract version from existing filename (format: name-version-release-arch.pkg.tar.zst)
-    existing_version=$(basename "$existing_file" | sed "s/^$pkg_name-//;s/-[^-]*-[^-]*\.pkg\.tar\.zst$//" | sed 's/-[0-9]*$//')
+trap 'on_error "$LINENO" "$BASH_COMMAND"' ERR
 
-    # Compare versions using vercmp
-    result=$(vercmp "$latest_version" "$existing_version" 2>/dev/null || echo "0")
+#####################################################################
+# Functions
+#####################################################################
+clean_pycache() {
+    local found
+    found=$(find "${SCRIPT_DIR}" -type d -name "__pycache__" 2>/dev/null)
 
-    if [ "$result" -gt 0 ]; then
-        # New version is newer, download needed
-        echo "$pkg_name: newer version available ($existing_version → $latest_version)"
-        return 0
-    else
-        # Current version is up to date
-        echo "$pkg_name: already up to date ($existing_version)"
-        return 1
+    if [[ -n "${found}" ]]; then
+        log_section "Cleaning __pycache__"
+        find "${SCRIPT_DIR}" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+        log_success "__pycache__ removed"
     fi
 }
 
-##################################################################################################################
+git_pull() {
+    log_section "Git pull"
+    git -C "${SCRIPT_DIR}" pull || log_warn "Git pull failed — continuing with local state"
+}
 
-if [ -d "$destiny" ]; then
-    rm -rf "$destiny"
-fi
-
-if ! [ -d "$destiny" ]; then
-    mkdir "$destiny"
-fi
-
-count=$(find "$source$dir" -maxdepth 1 -mindepth 1 | wc -l)
-cp -r "$source$dir/"* "$destiny"
-echo "Copied $count items to $destiny"
-
-##################################################################################################################
-# Download ucode packages to /etc/calamares/packages
-##################################################################################################################
-
-echo "Checking ucode packages..."
-
-packages_dir="etc/calamares/packages"
-
-# Create packages directory if it doesn't exist
-if ! [ -d "$packages_dir" ]; then
-    mkdir -p "$packages_dir"
-fi
-
-# Check and download packages if newer versions are available
-packages_to_download=""
-
-for pkg in intel-ucode amd-ucode; do
-    if compare_versions "$pkg" "$packages_dir"; then
-        packages_to_download="$packages_to_download $pkg"
+ensure_git_remote_configured() {
+    local remote_url
+    remote_url="$(git -C "${SCRIPT_DIR}" remote get-url origin 2>/dev/null || true)"
+    if [[ "${remote_url}" != *"github.com-edu"* ]]; then
+        log_section "Git remote not configured — running setup.sh first"
+        bash "${SCRIPT_DIR}/setup.sh"
     fi
-done
+}
 
-if [ -n "$packages_to_download" ]; then
-    echo "Downloading newer versions:$packages_to_download"
-    for pkg in $packages_to_download; do
-        rm -f "$packages_dir"/"$pkg"-*.pkg.tar.zst "$packages_dir"/"$pkg"-*.pkg.tar.zst.sig
-    done
-    sudo pacman -Sw --cachedir "$packages_dir" --noconfirm $packages_to_download
-    echo "Packages downloaded to $packages_dir"
-else
-    echo "All packages are up to date. Keeping existing files."
-fi
+git_commit_and_push() {
+    local branch
 
-##################################################################################################################
+    log_section "Git add / commit / push"
+    git add --all .
 
-# Below command will backup everything inside the project folder
-git add --all .
+    if [[ -z "$(git status --porcelain)" ]]; then
+        log_info "Nothing to commit — working tree clean"
+    else
+        git commit -m "update" || log_error "Git commit failed"
+    fi
 
-# Committing to the local repository with a message containing the time details and commit text
+    branch="$(git rev-parse --abbrev-ref HEAD)"
 
-git commit -m "update"
+    if ! git push -u origin "${branch}"; then
+        log_warn "Push rejected — rebasing on remote changes and retrying"
+        git pull --rebase origin "${branch}" || { log_error "Rebase failed — resolve conflicts manually"; return 1; }
+        git push -u origin "${branch}" || log_error "Git push failed after rebase"
+    fi
+}
 
-# Push the local files to github
+#####################################################################
+# Main
+#####################################################################
+main() {
+    clean_pycache
+    ensure_git_remote_configured
+    git_pull
+    git_commit_and_push
 
-branch=$(git rev-parse --abbrev-ref HEAD)
-git push -u origin "$branch"
+    log_success "$(basename "$0") done"
+}
 
-echo
-tput setaf 6
-echo "##############################################################"
-echo "###################  $(basename $0) done"
-echo "##############################################################"
-tput sgr0
-echo
+main "$@"
