@@ -4,6 +4,27 @@
 
 ---
 
+## 2026-05-19 — Liquorix Kernel Promoted to Production
+
+### Kernel Switch: linux → linux-lqx
+
+The Liquorix kernel (`linux-lqx`) has been validated in `kiro-calamares-config-next` and is now the default kernel for production Kiro installs.
+
+**`unpackfs2.conf`** — source path updated from `vmlinuz-linux` to `vmlinuz-linux-lqx`, and destination from `/boot/vmlinuz-linux` to `/boot/vmlinuz-linux-lqx`. This is the step that copies the kernel into the installed target.
+
+**`kiro_before/main.py`** — preset rename now targets `linux-lqx.preset` instead of `linux.preset`. The installed mkinitcpio preset must match the kernel package name.
+
+**`kiro_final/main.py`** — two changes:
+
+- Added `etc/mkinitcpio.d/linux.preset` to the live-only artifact cleanup list. The archiso live environment ships a `linux.preset`; with `linux-lqx` as the installed kernel, the correct preset (`linux-lqx.preset`) comes from the kernel package and `linux.preset` is a stale artifact that should not persist into the installed system.
+- Self-removal step confirmed to remove `kiro-calamares-config` (the production package name).
+
+**`kiro_ucode/main.py`** — gained a `remove_ucode_package()` method that cleans up the non-matching microcode package after installing the correct one. For example, on an Intel machine it installs `intel-ucode` and removes `amd-ucode`, and vice versa. Previously only the correct package was installed; the wrong one could linger.
+
+**`displaymanager.conf`** — trailing newline normalised (cosmetic only).
+
+---
+
 ## 2026-04-26
 - **`amd-ucode`** package updated → `20260410-1`
 
