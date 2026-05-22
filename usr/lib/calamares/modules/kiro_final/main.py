@@ -179,7 +179,7 @@ def run():
     try:
         profile_path = os.path.join(target_root, "etc/profile")
         with open(profile_path, "a") as profile:
-            profile.write("\nEDITOR=nano\n")
+            profile.write("\nexport EDITOR=nano\n")
         results["Configure system environment"] = "SUCCESS"
     except Exception as e:
         libcalamares.utils.warning(f"Failed to write to /etc/profile: {e}")
