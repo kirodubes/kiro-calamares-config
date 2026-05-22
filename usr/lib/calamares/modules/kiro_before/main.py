@@ -80,6 +80,13 @@ def sync_pacman_databases():
     modules emits warnings like:
         warning: database file for 'core' does not exist (use '-Sy')
     """
+    # Calamares' welcome module probes connectivity and sets "hasInternet"
+    # in globalstorage. Explicit False = offline, so skip cleanly instead
+    # of waiting on a pacman timeout. None/unset = unknown, attempt anyway.
+    if libcalamares.globalstorage.value("hasInternet") is False:
+        libcalamares.utils.debug("hasInternet=False — skipping pacman -Sy")
+        return None
+
     libcalamares.utils.debug("Refreshing pacman sync databases in target chroot")
     try:
         check_target_env_call(["pacman", "-Sy", "--noconfirm"])
