@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-05-22 — Silence "No config file" warnings for kiro_* modules
+
+### What Changed
+
+Added `noconfig: true` to the `module.desc` of all four custom Python modules: `kiro_before`, `kiro_final`, `kiro_remove_nvidia`, `kiro_ucode`. Also removed four misplaced dummy `.conf` files that had been dropped inside the module code directories.
+
+### Why
+
+Reading `/var/log/Calamares.log` on a freshly installed Kiro system showed four startup warnings of the form `WARNING: No config file for "kiro_before" found anywhere at ...`. Calamares only searches `/etc/calamares/modules/<module>.conf` and `/usr/share/calamares/modules/<module>.conf` for module configs — it never looks inside the module's own code directory at `/usr/lib/calamares/modules/<module>/`. The dummy `.conf` files placed there were invisible to the search, so the warnings continued to fire.
+
+None of the four kiro modules actually read any module-level config — they only use `libcalamares.globalstorage` and `libcalamares.utils`. Calamares supports an explicit `noconfig: true` flag in `module.desc` ([Descriptor.cpp:96](https://codeberg.org/erikdubois/calamares/src/branch/master/src/libcalamares/modulesystem/Descriptor.cpp#L96) reads it; [ModuleManager.cpp:165](https://codeberg.org/erikdubois/calamares/src/branch/master/src/libcalamaresui/modulesystem/ModuleManager.cpp#L165) short-circuits the search when it is set) designed for exactly this case: a module that needs no configuration. This is the truthful, zero-maintenance fix.
+
+### Technical Details
+
+- `noconfig: true` was appended to each of the four `module.desc` files; the indentation of the line matches the existing keys in each file (the `kiro_ucode` descriptor uses padded alignment, the others do not).
+- The four misplaced dummy files (`kiro_before/kiro_before.conf`, etc.) under `usr/lib/calamares/modules/` were deleted.
+- If a kiro module ever does grow real config, the fix is to flip the flag back off and ship a real `<module>.conf` under `etc/calamares/modules/`.
+
+### Files Modified
+
+- `usr/lib/calamares/modules/kiro_before/module.desc`
+- `usr/lib/calamares/modules/kiro_final/module.desc`
+- `usr/lib/calamares/modules/kiro_remove_nvidia/module.desc`
+- `usr/lib/calamares/modules/kiro_ucode/module.desc`
+- Deleted: `usr/lib/calamares/modules/kiro_before/kiro_before.conf`
+- Deleted: `usr/lib/calamares/modules/kiro_final/kiro_final.conf`
+- Deleted: `usr/lib/calamares/modules/kiro_remove_nvidia/kiro_remove_nvidia.conf`
+- Deleted: `usr/lib/calamares/modules/kiro_ucode/kiro_ucode.conf`
+
+---
+
 ## 2026-05-19 — Liquorix Kernel Promoted to Production
 
 ### Kernel Switch: linux → linux-lqx
