@@ -4,34 +4,72 @@
 
 ---
 
-## 2026-05-22 — Silence "No config file" warnings for kiro_* modules
+## 2026-05-24 — PKGBUILD Promotion, Swap Options, Repo Sync
 
 ### What Changed
 
-Added `noconfig: true` to the `module.desc` of all four custom Python modules: `kiro_before`, `kiro_final`, `kiro_remove_nvidia`, `kiro_ucode`. Also removed four misplaced dummy `.conf` files that had been dropped inside the module code directories.
-
-### Why
-
-Reading `/var/log/Calamares.log` on a freshly installed Kiro system showed four startup warnings of the form `WARNING: No config file for "kiro_before" found anywhere at ...`. Calamares only searches `/etc/calamares/modules/<module>.conf` and `/usr/share/calamares/modules/<module>.conf` for module configs — it never looks inside the module's own code directory at `/usr/lib/calamares/modules/<module>/`. The dummy `.conf` files placed there were invisible to the search, so the warnings continued to fire.
-
-None of the four kiro modules actually read any module-level config — they only use `libcalamares.globalstorage` and `libcalamares.utils`. Calamares supports an explicit `noconfig: true` flag in `module.desc` ([Descriptor.cpp:96](https://codeberg.org/erikdubois/calamares/src/branch/master/src/libcalamares/modulesystem/Descriptor.cpp#L96) reads it; [ModuleManager.cpp:165](https://codeberg.org/erikdubois/calamares/src/branch/master/src/libcalamaresui/modulesystem/ModuleManager.cpp#L165) short-circuits the search when it is set) designed for exactly this case: a module that needs no configuration. This is the truthful, zero-maintenance fix.
+- **PKGBUILD identity flipped to canonical** — the package now `provides=('calamares')` and `conflicts=('calamares-next' 'calamares-git')`, the reverse of the previous `provides=('calamares-next')` / `conflicts=('calamares' 'calamares-git')`. This config repo's build is now the production `calamares` package, with the `-next` repo holding the beta. `pkgver` placeholder bumped `3.3.14.r132` → `3.4.2.r4`, `pkgrel` `3` → `1`, and the `calamares-wrapper` sha256 refreshed.
+- **partition.conf swap choices expanded** — re-enabled the previously commented-out `small` (up to 4GB) and `suspend` (≥ RAM size) options. `userSwapChoices` now offers `none / small / suspend / file`; `suspend` enables hibernation.
+- **cal-kiro.desktop rebranded** — `Name`/`Comment` changed from "Install ArcoLinux" / "Installer for ArcoLinux" to "Install kiro" / "Installer for kiro". The live-desktop copy is now installed executable (`-Dm755` + explicit `chmod +x`) so it launches without the "untrusted desktop file" prompt.
+- **amd-ucode bundle updated** `20260410-1` → `20260519-1` (`.pkg.tar.zst` + `.sig` swapped).
+- **`calamares-widget-tree` branding file removed** (572 lines) — stale/unused.
 
 ### Technical Details
 
-- `noconfig: true` was appended to each of the four `module.desc` files; the indentation of the line matches the existing keys in each file (the `kiro_ucode` descriptor uses padded alignment, the others do not).
-- The four misplaced dummy files (`kiro_before/kiro_before.conf`, etc.) under `usr/lib/calamares/modules/` were deleted.
-- If a kiro module ever does grow real config, the fix is to flip the flag back off and ship a real `<module>.conf` under `etc/calamares/modules/`.
+- **`up.sh` gained two sync functions.** `update_ucode()` refreshes the bundled microcode packages; `update_pkgbuild()` copies the latest hand-built PKGBUILD folder from `~/KIRO-PKG-BUILD` into `etc/calamares/pkgbuild/`. The sync only considers `calamares-3*` folders (skipping the `calamares-next-*` beta folders that belong to the `-next` config repo), picks the highest version via `sort -V`, and **strips** `up.sh`, `setup.sh`, `.current-version`, `.previous-version` from the destination after the copy — those belong to `KIRO-PKG-BUILD`, not this repo. Stripping is unconditional so it also clears remnants from earlier syncs.
+- A `build.sh` helper was added under `etc/calamares/pkgbuild/`. **Remember:** the PKGBUILD and its build helpers are authored in `~/KIRO/kiro-pkgbuild/` (now synced via `~/KIRO-PKG-BUILD`) — do not hand-edit them here.
 
 ### Files Modified
 
-- `usr/lib/calamares/modules/kiro_before/module.desc`
-- `usr/lib/calamares/modules/kiro_final/module.desc`
-- `usr/lib/calamares/modules/kiro_remove_nvidia/module.desc`
-- `usr/lib/calamares/modules/kiro_ucode/module.desc`
-- Deleted: `usr/lib/calamares/modules/kiro_before/kiro_before.conf`
-- Deleted: `usr/lib/calamares/modules/kiro_final/kiro_final.conf`
-- Deleted: `usr/lib/calamares/modules/kiro_remove_nvidia/kiro_remove_nvidia.conf`
-- Deleted: `usr/lib/calamares/modules/kiro_ucode/kiro_ucode.conf`
+- `etc/calamares/pkgbuild/PKGBUILD`, `etc/calamares/pkgbuild/cal-kiro.desktop`, `etc/calamares/pkgbuild/build.sh` (added)
+- `etc/calamares/modules/partition.conf`
+- `etc/calamares/packages/amd-ucode-20260519-1-any.pkg.tar.zst` (+ `.sig`); removed `20260410-1`
+- Deleted: `etc/calamares/branding/kiro/calamares-widget-tree`
+- `up.sh`
+
+---
+
+## 2026-05-23 — README Polish
+
+- **README.md** — logo switched to centered HTML (`<p align="center"><img src="kiro.jpg" width="220">`) instead of a full-width markdown image.
+- **kiro.jpg** recompressed 196 KB → 37 KB.
+
+---
+
+## 2026-05-22 — VM Cleanup Correctness, tuned, pacman -Sy, gpt default
+
+### Bare-metal VM cleanup was silently skipped (kiro_final)
+
+`systemd-detect-virt` **exits 1 on bare metal** while still printing `none` to stdout. The previous `subprocess.run(check=True)` raised `CalledProcessError`, the handler returned `"unknown"`, and all three VM-cleanup branches were skipped — so `open-vm-tools`, `qemu-guest-agent`, and `virtualbox-guest-utils` (plus their orphan service symlinks) shipped through to installed bare-metal systems.
+
+- Dropped `check=True` so stdout is captured regardless of exit code; empty output falls back to `"unknown"`.
+- Refactored the three nested `if vm_type in [...]` blocks into a declarative `VM_CLEANUP_PROFILES` + `VM_CLEANUP_BY_TYPE` table dispatched through a single `cleanup_vm_profile()` helper. Behaviour preserved for all existing `vm_type` values; `none` (bare metal) strips all three profiles.
+- Orphan `multi-user.target.wants/` symlinks (`vmtoolsd`, `vmware-vmblock-fuse`, `qemu-guest-agent`, `vboxservice`) are now unlinked **unconditionally** per profile — `pacman -Rns` removes the unit file but not the enable-time symlink, and `systemctl disable` inside the chroot is unreliable without a running dbus.
+
+### tuned enabled on install (services-systemd.conf)
+
+Added `tuned.service` and `tuned-ppd.service` (both `mandatory: true`) to `services-systemd`. The kiro-iso airootfs enables them and pins `throughput-performance`, but Calamares does not preserve the airootfs `.wants/` symlinks across install — packages landed but services came up disabled, so installed systems fell back to tuned's `balanced` default. `/etc/tuned/active_profile` already copies through `unpackfs`, so enabling the service restores the intended profile.
+
+### pacman sync DBs refreshed (kiro_before)
+
+Added a `sync_pacman_databases()` step (after key init, before any later pacman use) running `pacman -Sy --noconfirm` in the chroot. Without it the ISO's bundled `/var/lib/pacman/sync/` is empty/stale, and `kiro_remove_nvidia` / `kiro_ucode` / `kiro_final` emitted ~20 `database file for 'core' does not exist (use '-Sy')` warnings. Best-effort: a flaky mirror is logged and swallowed. Gated on Calamares' `hasInternet` globalstorage flag — explicit `False` skips cleanly instead of waiting on a pacman timeout; unset/unknown still attempts.
+
+### gpt as default partition table (partition.conf)
+
+Set `defaultPartitionTableType: gpt` to silence the install-time "setting is unset, will use gpt/msdos" warning. Matches Kiro's EFI-first stance; BIOS installs still get the correct table per medium.
+
+### Silenced "No config file" warnings (kiro_* module.desc)
+
+Added `noconfig: true` to all four custom modules' `module.desc` and removed four misplaced dummy `.conf` files that had been dropped inside the module code directories. Calamares only searches `/etc/calamares/modules/` and `/usr/share/calamares/modules/` for configs — never the module's own code dir — so those dummies were invisible and the warnings kept firing. None of the four modules read module-level config (they use only `globalstorage` + `utils`), and Calamares supports `noconfig: true` ([Descriptor.cpp:96](https://codeberg.org/erikdubois/calamares/src/branch/master/src/libcalamares/modulesystem/Descriptor.cpp#L96) / [ModuleManager.cpp:165](https://codeberg.org/erikdubois/calamares/src/branch/master/src/libcalamaresui/modulesystem/ModuleManager.cpp#L165)) for exactly this case. If a module ever grows real config, flip the flag off and ship a real `<module>.conf` under `etc/calamares/modules/`.
+
+### Files Modified
+
+- `usr/lib/calamares/modules/kiro_final/main.py`
+- `usr/lib/calamares/modules/kiro_before/main.py`
+- `etc/calamares/modules/services-systemd.conf`
+- `etc/calamares/modules/partition.conf`
+- `usr/lib/calamares/modules/{kiro_before,kiro_final,kiro_remove_nvidia,kiro_ucode}/module.desc`
+- Deleted: the four misplaced `usr/lib/calamares/modules/<module>/<module>.conf` dummies
 
 ---
 
