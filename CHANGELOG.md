@@ -4,11 +4,12 @@
 
 ---
 
-## 2026-05-26 — cups printing enabled on installed system (socket activation)
+## 2026-05-26 — cups printing + logrotate.timer enabled on installed system
 
 ### What Changed
 
 - **`services-systemd` now enables `cups.socket`.** Printing was off after a fresh install + reboot. The live ISO enabled CUPS via airootfs symlinks, but those are not carried into the installed system, and the Calamares `services-systemd` unit list (ananicy-cpp, tuned, tuned-ppd, firewalld) never enabled cups. Added a `cups.socket` → `enable` → `mandatory: true` entry. Socket activation only — `cups.service` starts on demand when a client opens the print socket, so there is no always-running daemon. Paired with `kiro-iso`, which trims its airootfs cups symlinks to socket-only.
+- **`services-systemd` now enables `logrotate.timer`.** On a fresh install the timer was active-but-not-enabled (`is-enabled` = disabled), so its persistence wasn't guaranteed. Enabling it explicitly caps unbounded growth of file-based logs (`pacman.log`, Xorg/app logs); journald rotates its own store separately via `SystemMaxUse`. Set `mandatory: false` so a log-rotation timer can never abort an install. `man-db.timer` was reviewed alongside and **declined** (only refreshes the apropos index; periodic SSD/laptop wakeup churn for marginal benefit). Mirrored to `kiro-calamares-config-next`.
 
 ### Files Modified
 
