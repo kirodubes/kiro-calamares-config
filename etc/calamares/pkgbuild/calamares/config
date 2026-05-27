@@ -1,0 +1,9 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = true
+[remote "origin"]
+	url = https://codeberg.org/erikdubois/calamares
+	tagOpt = --no-tags
+	fetch = +refs/*:refs/*
+	mirror = true
