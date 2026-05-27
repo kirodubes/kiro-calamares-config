@@ -1,8 +1,29 @@
 # CHANGELOG — kiro-calamares-config
 
-> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_final`, `kiro_remove_nvidia`, `kiro_ucode`.
+> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_final`, `kiro_kernel`, `kiro_remove_nvidia`, `kiro_ucode`.
 
 ---
+
+## 2026-05-27 — kernel-agnostic installer (new `kiro_kernel` module)
+
+### What Changed
+
+- **New `kiro_kernel` module makes the installer independent of the ISO's kernel package.** Previously three places hardcoded `linux-lqx`: the `unpackfs@vmlinuz` job (copied `vmlinuz-linux-lqx` from the live medium), `kiro_before`'s preset rename (`kiro` → `linux-lqx.preset`), and the static `kiro` preset. `kiro_kernel` now **loops over every** `vmlinuz-*` on the live medium (`/run/archiso/bootmnt/arch/boot/x86_64/`), copying each image to `/boot/vmlinuz-<kernel>`, generating a matching `/etc/mkinitcpio.d/<kernel>.preset`, and removing the live-only preset artifacts (`kiro`, `linux.preset`) **first** so the plain `linux` kernel's preset isn't clobbered. So an ISO built with any kernel — or several — installs correctly with **zero edits to the calamares config**.
+- **`unpackfs@vmlinuz` removed**, replaced by `kiro_kernel` in the exec sequence (same slot, after `unpackfs@rootfs`); the `vmlinuz` unpackfs instance and `unpackfs2.conf` deleted.
+- **`kiro_before` no longer renames the preset** — `move_mkinitcpio_preset()` and its step removed; preset handling lives entirely in `kiro_kernel`. Stores `kiroKernels` (list) + `kiroKernel` (primary) in globalstorage.
+
+### Technical Details
+
+- Developed and validated on `kiro-calamares-config-next` first, then mirrored here byte-for-byte (the kernel-touched files diff identical to the proven `-next` versions). **Proven end-to-end on real installs:** CachyOS (single kernel) and `linux-lts` + `linux-zen` (multi-kernel) both installed and booted, with all kernels' images, initramfs, and intact headers present. Paired with `kiro-iso`'s build-side kernel selector.
+- `initcpio.conf` runs `mkinitcpio -P` (all presets), so each generated `<kernel>.preset` yields one initramfs; `kiro_final`'s `linux.preset` removal is left as a guarded no-op.
+
+### Files Modified
+
+- [usr/lib/calamares/modules/kiro_kernel/main.py](usr/lib/calamares/modules/kiro_kernel/main.py) (new)
+- [usr/lib/calamares/modules/kiro_kernel/module.desc](usr/lib/calamares/modules/kiro_kernel/module.desc) (new)
+- [etc/calamares/settings.conf](etc/calamares/settings.conf)
+- [usr/lib/calamares/modules/kiro_before/main.py](usr/lib/calamares/modules/kiro_before/main.py)
+- [etc/calamares/modules/unpackfs2.conf](etc/calamares/modules/unpackfs2.conf) (deleted)
 
 ## 2026-05-26 — cups printing + logrotate.timer enabled on installed system
 
