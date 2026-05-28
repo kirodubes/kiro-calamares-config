@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-05-28 — Hardware-aware install via **chwd** (synced from `kiro-calamares-config-next`)
+
+The chwd Calamares module developed and validated in [kiro-calamares-config-next](../kiro-calamares-config-next/) on this same date is now mirrored here. Validated end-to-end on a VirtualBox install: module loaded correctly, read `driver=nonfree` from `/proc/cmdline`, invoked `arch-chroot $rootMountPoint chwd --autoconfigure` inside the target chroot, returned cleanly. All 42 Calamares jobs completed; install booted successfully. The companion package [chwd in nemesis_repo](../../EDU-PKG-BUILD/edu-pkgbuild-3party/chwd/) ships a patched profiles.toml fixing the upstream CachyOS `[virtualbox]` / `[vmware]` vendor_id swap, so VirtualBox guests now match the correct profile and install `virtualbox-guest-utils` via chwd's `--autoconfigure` path.
+
+### Changes synced
+
+**New module: `usr/lib/calamares/modules/chwd/`**
+
+Two-file Python jobmodule modelled after CachyOS's own `cachyos-calamares/src/modules/chwd/`. `module.desc` declares a Python `job` module pointing at `main.py`. `main.py` runs `arch-chroot $rootMountPoint chwd --autoconfigure` inside the target chroot — chwd then inspects PCI/USB devices, matches them against priority-ranked TOML profiles in `/var/lib/chwd/db/`, and installs the right driver bundle (NVIDIA 470xx / 580xx / nvidia-open-dkms / nouveau / AMD / Intel / Broadcom / hybrid PRIME variants for laptops via DMI chassis types 8/9/10/11). The module honours the existing GRUB-menu `driver=` kernel cmdline: on `driver=free` it skips itself entirely so `kiro_remove_nvidia` keeps owning that path; on `driver=nonfree` chwd does the smart hardware-detection install.
+
+**Settings.conf — chwd added to exec sequence**
+
+[etc/calamares/settings.conf](etc/calamares/settings.conf) — `chwd` inserted between `kiro_remove_nvidia` and `initcpiocfg`. Position matters: DKMS modules that chwd installs need to be present before `initcpiocfg` writes the mkinitcpio preset and `initcpio` regenerates the initramfs.
+
+### Why keep `kiro_remove_nvidia`
+
+The two modules are complementary, not overlapping: `kiro_remove_nvidia` is the fast path for `driver=free` (removes baked-in `nvidia-open-dkms` for a pure nouveau install); chwd is the smart path for `driver=nonfree` (looks at the actual GPU and picks the right proprietary variant). Folding them into one is a future cleanup once chwd is fully trusted across hardware variants.
+
+### Pairs With
+
+- [kiro-iso](../kiro-iso/) — needs the same package-list updates as `kiro-iso-next` got: add `chwd`, `b43-fwcutter`, `broadcom-wl-dkms`, `hwdetect` to `archiso/packages.x86_64`. Without these the live ISO has no chwd to run.
+- [edu-pkgbuild-3party/chwd](../../EDU-PKG-BUILD/edu-pkgbuild-3party/chwd/) — the patched chwd PKGBUILD in nemesis_repo. Self-validating sed in `prepare()` fixes upstream's swapped vendor_ids for the `[virtualbox]` and `[vmware]` graphic_drivers profiles.
+
+**Files modified**
+- `usr/lib/calamares/modules/chwd/module.desc` (new)
+- `usr/lib/calamares/modules/chwd/main.py` (new)
+- `etc/calamares/settings.conf` — `chwd` inserted between `kiro_remove_nvidia` and `initcpiocfg`
+
+---
+
 ## 2026-05-28 — kiro_final pins tuned ppd_base_profile = performance
 
 **Symptom:** Both bare-metal pre-release installs (Picard + Riker, v26.05.28) reported `tuned-adm active = balanced` instead of `throughput-performance`. `/etc/tuned/ppd_base_profile` contained `balanced` and was owned by `tuned 2.27.0-1` per `pacman -Qo`.
