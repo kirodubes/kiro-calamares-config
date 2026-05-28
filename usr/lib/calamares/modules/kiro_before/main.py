@@ -98,6 +98,18 @@ def sync_pacman_databases():
     return None
 
 
+# Cache trigger directories whose mtime is sampled here so kiro_final can skip
+# cache rebuilds whose source data wasn't touched during install. Must mirror
+# the trigger paths in kiro_final.CACHE_REBUILD_STEPS.
+CACHE_TRIGGER_DIRS = (
+    "usr/share/icons",            # gtk-update-icon-cache
+    "usr/share/applications",     # update-desktop-database
+    "usr/share/mime/packages",    # update-mime-database
+    "usr/share/fonts",            # fontconfig + xorg-mkfontscale
+    "etc/dconf/db",               # dconf update
+)
+
+
 # Pacman hooks shadowed to /dev/null in the target chroot during install so
 # heavyweight cache rebuilds don't fire once per pacman transaction. Each
 # transaction (kiro_remove_nvidia, packages, kiro_ucode, kiro_final removals)
@@ -115,6 +127,28 @@ SUPPRESSED_HOOKS = (
     "dconf-update.hook",              # system dconf databases
     "xorg-mkfontscale.hook",          # X font dir indices
 )
+
+
+def snapshot_cache_trigger_mtimes():
+    """Snapshot mtimes of every cache trigger dir into globalstorage.
+
+    kiro_final compares these against the post-install mtimes and skips
+    cache rebuilds whose trigger dir was untouched during the install. The
+    snapshot must happen BEFORE any pacman operation in the install pipeline
+    so we capture the pristine post-unpackfs state.
+    """
+    target_root = libcalamares.globalstorage.value("rootMountPoint")
+    snapshot = {}
+    for rel in CACHE_TRIGGER_DIRS:
+        full = os.path.join(target_root, rel)
+        try:
+            snapshot[rel] = os.stat(full).st_mtime if os.path.exists(full) else None
+        except Exception as e:
+            libcalamares.utils.warning(f"Could not stat {full} for cache baseline: {e}")
+            snapshot[rel] = None
+    libcalamares.globalstorage.insert("kiroCacheMtimeBaseline", snapshot)
+    libcalamares.utils.debug(f"Cache trigger mtime baseline: {snapshot}")
+    return None
 
 
 def suppress_pacman_hooks():
@@ -188,13 +222,15 @@ def run():
 
     libcalamares.utils.debug("This module will perform the following operations:")
     libcalamares.utils.debug("  1. Wait for pacman lock to be released")
-    libcalamares.utils.debug("  2. Suppress heavyweight pacman hooks (perf — restored in kiro_final)")
-    libcalamares.utils.debug("  3. Initialize pacman keys and populate keyrings (archlinux, chaotic)")
-    libcalamares.utils.debug("  4. Refresh pacman sync databases (pacman -Sy)")
-    libcalamares.utils.debug("  5. Optimize makepkg.conf (MAKEFLAGS, PKGEXT, OPTIONS)\n")
+    libcalamares.utils.debug("  2. Snapshot cache trigger dir mtimes (perf — paired with kiro_final)")
+    libcalamares.utils.debug("  3. Suppress heavyweight pacman hooks (perf — restored in kiro_final)")
+    libcalamares.utils.debug("  4. Initialize pacman keys and populate keyrings (archlinux, chaotic)")
+    libcalamares.utils.debug("  5. Refresh pacman sync databases (pacman -Sy)")
+    libcalamares.utils.debug("  6. Optimize makepkg.conf (MAKEFLAGS, PKGEXT, OPTIONS)\n")
 
     functions = [
         ("Wait for pacman lock", wait_for_pacman_lock),
+        ("Snapshot cache mtimes", snapshot_cache_trigger_mtimes),
         ("Suppress pacman hooks", suppress_pacman_hooks),
         ("Initialize pacman keys", initialize_pacman_keys),
         ("Sync pacman databases", sync_pacman_databases),

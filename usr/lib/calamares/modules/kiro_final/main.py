@@ -87,24 +87,38 @@ SUPPRESSED_HOOKS = (
 )
 
 # Each suppressed hook's underlying command, run exactly ONCE in the target
-# chroot at the very end of kiro_final after the symlinks are removed.
-# Without this pass the installed system boots with stale caches (missing
-# icons, unknown MIME types, blank font lists, no dconf defaults). The
+# chroot at the very end of kiro_final after the symlinks are removed. The
 # mkinitcpio hook has no entry here — Calamares' explicit initcpio job
 # already rebuilt initramfs before kiro_final runs.
+#
+# Each tuple is (description, shell command, trigger dir relative to target
+# root). The trigger dir is the same path the suppressed hook watches; we
+# compare its current mtime against the baseline kiro_before snapshotted
+# pre-install and SKIP rebuilds whose source data was never touched. Without
+# the skip we paid ~8s/run for update-mime-database, ~2s for fc-cache, etc.,
+# even though the install transactions (kiro_remove_nvidia, packages,
+# kiro_ucode, kiro_final removals) typically don't touch MIME / fonts /
+# dconf data at all. Two trigger dirs are shared (fontconfig + xorg-mkfontscale
+# both watch usr/share/fonts) — that's fine, the mtime check is symmetric.
 CACHE_REBUILD_STEPS = (
     ("gtk-update-icon-cache",
-     'for d in /usr/share/icons/*/; do [ -e "${d}index.theme" ] && gtk-update-icon-cache -q "$d" || true; done'),
+     'for d in /usr/share/icons/*/; do [ -e "${d}index.theme" ] && gtk-update-icon-cache -q "$d" || true; done',
+     "usr/share/icons"),
     ("update-desktop-database",
-     "update-desktop-database --quiet"),
+     "update-desktop-database --quiet",
+     "usr/share/applications"),
     ("update-mime-database",
-     "update-mime-database /usr/share/mime"),
+     "update-mime-database /usr/share/mime",
+     "usr/share/mime/packages"),
     ("fontconfig (fc-cache)",
-     "fc-cache -s"),
+     "fc-cache -s",
+     "usr/share/fonts"),
     ("dconf update",
-     "dconf update"),
+     "dconf update",
+     "etc/dconf/db"),
     ("xorg-mkfontscale",
-     'for d in /usr/share/fonts/*/; do [ "${d%/}" = /usr/share/fonts/encodings ] && continue; mkfontscale "$d" 2>/dev/null || true; mkfontdir "$d" 2>/dev/null || true; done'),
+     'for d in /usr/share/fonts/*/; do [ "${d%/}" = /usr/share/fonts/encodings ] && continue; mkfontscale "$d" 2>/dev/null || true; mkfontdir "$d" 2>/dev/null || true; done',
+     "usr/share/fonts"),
 )
 
 
@@ -126,9 +140,42 @@ def restore_suppressed_hooks(target_root):
     return restored
 
 
+def _cache_trigger_changed(target_root, trigger_rel, baseline):
+    """Return True if trigger_rel's mtime changed since kiro_before's snapshot.
+
+    Defensive default: returns True (rebuild) when:
+      - no baseline available (kiro_before didn't run, or globalstorage lost)
+      - mtime cannot be read
+      - dir came into / went out of existence
+
+    Limits: only the trigger dir's own mtime is checked, not files inside its
+    subdirs. That catches additions/removals at the watched level (which is
+    what the pacman hook triggers on too) without an expensive recursive walk.
+    """
+    if not baseline:
+        return True
+    previous = baseline.get(trigger_rel)
+    full = os.path.join(target_root, trigger_rel)
+    try:
+        current = os.stat(full).st_mtime if os.path.exists(full) else None
+    except Exception:
+        return True
+    return current != previous
+
+
 def rebuild_caches_once(target_root):
-    """Run each suppressed hook's underlying command exactly once in the chroot."""
-    for desc, cmd in CACHE_REBUILD_STEPS:
+    """Run each suppressed hook's underlying command exactly once in the chroot.
+
+    Skips rebuilds whose trigger dir mtime is unchanged vs kiro_before's
+    snapshot — the typical Kiro install touches very few cache trigger paths,
+    so update-mime-database / fc-cache / dconf / mkfontscale usually have
+    nothing to do.
+    """
+    baseline = libcalamares.globalstorage.value("kiroCacheMtimeBaseline") or {}
+    for desc, cmd, trigger_rel in CACHE_REBUILD_STEPS:
+        if not _cache_trigger_changed(target_root, trigger_rel, baseline):
+            libcalamares.utils.debug(f"Cache trigger unchanged, skipping rebuild: {desc}")
+            continue
         libcalamares.utils.debug(f"Rebuilding cache once: {desc}")
         try:
             subprocess.run(

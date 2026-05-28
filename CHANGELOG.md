@@ -75,6 +75,18 @@ Realistic save: 15-30s on top of the existing mkinitcpio fix. VM-install benchma
 
 Save: small (~2-3s per install), but free. Counterpart fix for `kiro_remove_nvidia` was unnecessary — that module already had `_is_installed_in_target()` guarding the candidate list.
 
+### Performance — mtime-gated cache rebuilds + VM-skip for kiro_ucode
+
+Follow-up to the earlier "extended hook suppression" change. The first measurement showed install was actually ~6 s **slower** with all 6 cache rebuilds running unconditionally in `kiro_final` (`update-mime-database` alone cost ~8 s, fc-cache ~2 s, while the corresponding hooks would only have fired for transactions that touch their trigger paths — which the Kiro install pipeline mostly doesn't). Two changes to recover that time without giving up the first-boot freshness guarantee:
+
+**`kiro_before/main.py`** — new `snapshot_cache_trigger_mtimes()` step that records the pristine mtime of every cache trigger dir (`usr/share/icons`, `usr/share/applications`, `usr/share/mime/packages`, `usr/share/fonts`, `etc/dconf/db`) into `libcalamares.globalstorage` under key `kiroCacheMtimeBaseline`. Runs after the lock wait and before any pacman op, so we capture the post-unpackfs state.
+
+**`kiro_final/main.py`** — `CACHE_REBUILD_STEPS` now carries the trigger dir alongside the description and command. New `_cache_trigger_changed()` helper compares current mtime against the baseline; `rebuild_caches_once()` skips any step whose trigger dir mtime is unchanged. Defensive default: when the baseline is missing or the dir can't be stat'd, we rebuild (favour correctness over speed). Limit: only the top-level dir's own mtime is checked, not files inside its subdirs — that matches pacman's hook trigger semantics without an expensive recursive walk.
+
+**`kiro_ucode/main.py`** — added `_detect_target_virt()` and an early-return at the top of `run()` when `systemd-detect-virt` in the target chroot reports anything other than `none`. The hypervisor handles guest microcode, so the `pacman -U <vendor>-ucode` + `pacman -R <other-vendor>-ucode` work is pure waste on a VM (~5 s per install). Bare metal is untouched. Both ucode packages stay installed in their live-ISO state; the kernel ignores them on a guest CPU. Counterpart of `kiro_final`'s existing `VM_CLEANUP_BY_TYPE` logic.
+
+Expected combined save vs the previous build: ~10-12 s on VM installs (skip kiro_ucode + skip mime/font/dconf/mkfontscale rebuilds when triggers untouched); ~5-10 s on bare metal.
+
 ### Ruff cleanups (incidental, in the same file)
 
 [bootloader/main.py](etc/calamares/pkgbuild/modules/bootloader/main.py): four pre-existing lint hits in upstream-derived code, fixed while in the file:
