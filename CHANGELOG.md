@@ -50,6 +50,25 @@ Only **#2** is needed — it's the explicit Calamares job that invokes `mkinitcp
 
 The explicit Calamares mkinitcpio job at step 23-24 still runs because it invokes mkinitcpio directly, not via the pacman hook — so the source-of-truth initramfs pass is preserved. Estimated save: ~30-60s on a 2-kernel install (5 hook-triggered passes × 2 kernels = 10 image builds → 1 pass × 2 kernels = 2 image builds).
 
+### Performance — extended hook suppression to 6 more cache-rebuild hooks
+
+Same pattern as the mkinitcpio fix above, generalised to the other heavyweight cache-rebuild pacman hooks that fire per transaction during install. With 4+ pacman transactions in the pipeline (`kiro_remove_nvidia`, `packages`, `kiro_ucode`, `kiro_final` removals) each one re-runs the same expensive chain from scratch.
+
+Hooks now shadowed to `/dev/null` in the chroot (in addition to `90-mkinitcpio-install.hook`):
+
+- `gtk-update-icon-cache.hook` — icon theme caches
+- `update-desktop-database.hook` — `.desktop` MIME cache
+- `30-update-mime-database.hook` — shared MIME database
+- `fontconfig.hook` — `fc-cache`
+- `dconf-update.hook` — system dconf databases
+- `xorg-mkfontscale.hook` — X font dir indices
+
+**`kiro_before/main.py`** — `suppress_mkinitcpio_hook()` renamed to `suppress_pacman_hooks()` and now iterates a module-level `SUPPRESSED_HOOKS` tuple. Same `/dev/null` shadow-symlink trick under `/etc/pacman.d/hooks/`.
+
+**`kiro_final/main.py`** — old single-hook restore replaced with two helpers: `restore_suppressed_hooks()` (loops over the same tuple, unlinks each shadow symlink) and `rebuild_caches_once()` (runs each hook's underlying command exactly ONCE in the chroot via a `CACHE_REBUILD_STEPS` table). Without the one-shot rebuild the installed system would boot with stale caches (missing icons, unknown MIME types, blank font lists, no dconf defaults). The mkinitcpio hook has no entry in the rebuild table — Calamares' explicit `initcpio` job already rebuilt initramfs before kiro_final runs.
+
+Realistic save: 15-30s on top of the existing mkinitcpio fix. VM-install benchmark vs the post-mkinitcpio-fix baseline still pending.
+
 ### Ruff cleanups (incidental, in the same file)
 
 [bootloader/main.py](etc/calamares/pkgbuild/modules/bootloader/main.py): four pre-existing lint hits in upstream-derived code, fixed while in the file:
