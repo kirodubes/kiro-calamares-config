@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-05-28 — kiro_final pins tuned ppd_base_profile = performance
+
+**Symptom:** Both bare-metal pre-release installs (Picard + Riker, v26.05.28) reported `tuned-adm active = balanced` instead of `throughput-performance`. `/etc/tuned/ppd_base_profile` contained `balanced` and was owned by `tuned 2.27.0-1` per `pacman -Qo`.
+
+**Root cause:** The earlier "fix" assumed `/etc/tuned/ppd_base_profile` was "intentionally absent" so that ppd.conf's `default=performance` fallback would win. That assumption was wrong — the upstream `tuned` package's pacman install writes the file fresh during Calamares' package phase, with content `balanced`. The fall-through to `default=performance` therefore never fires.
+
+**Fix:** New step in `kiro_final/main.py` (between "Configure Bluetooth and PulseAudio" and "Configure bootloader" — last module, so it runs after every package install and overlay write): open `<target>/etc/tuned/ppd_base_profile` and write `performance\n`. Logged as `Pin tuned ppd_base_profile: SUCCESS` in the module result summary. Tradeoff: unconditional overwrite — a user who has manually changed the file and then reinstalls will lose their setting, which is the correct behavior on a fresh install.
+
+Paired with a new `check_tuned_profile` in [edu-system-files/usr/local/bin/kiro-audit](/home/erik/EDU/edu-system-files/usr/local/bin/kiro-audit) that asserts the pinned value + `tuned-adm active == throughput-performance` post-install, so the regression is caught by audit on every future install instead of via syscheck spelunk.
+
+**Files Modified**
+- `usr/lib/calamares/modules/kiro_final/main.py`
+
+---
+
 ## 2026-05-28 — multi-kernel install: cmdline-duplication fix + mkinitcpio churn cut
 
 Two install-time fixes surfaced by the first multi-kernel install (cachyos + zen, see [kiro-iso/DISTRO_TESTING.md](/home/erik/KIRO/kiro-iso/DISTRO_TESTING.md)).
