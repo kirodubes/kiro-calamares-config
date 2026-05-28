@@ -9,7 +9,7 @@ import libcalamares
 import subprocess
 import os
 import glob
-from libcalamares.utils import target_env_call
+from libcalamares.utils import target_env_call, check_target_env_call
 
 
 class ConfigController:
@@ -63,14 +63,25 @@ class ConfigController:
             libcalamares.utils.warning(f"Failed to install {package_name}: {e}")
             return False
 
+    def is_installed_in_target(self, package_name):
+        """Return True if package_name is installed in the target chroot."""
+        try:
+            check_target_env_call(["pacman", "-Q", package_name])
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     def remove_ucode_package(self, package_name):
-        """Remove wrong microcode package from the installed target."""
+        """Remove wrong microcode package from the installed target if present."""
+        if not self.is_installed_in_target(package_name):
+            libcalamares.utils.debug(f"{package_name} not installed in target; skipping removal.")
+            return
         libcalamares.utils.debug(f"Removing {package_name} from target...")
         try:
             target_env_call(["pacman", "-R", "--noconfirm", package_name])
             libcalamares.utils.debug(f"Successfully removed {package_name}")
         except Exception as e:
-            # Non-fatal — package may already be absent
+            # Non-fatal — guarded above, but keep the catch for races.
             libcalamares.utils.warning(f"Could not remove {package_name}: {e}")
 
     def handle_ucode(self):

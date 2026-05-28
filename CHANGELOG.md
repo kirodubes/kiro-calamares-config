@@ -69,6 +69,12 @@ Hooks now shadowed to `/dev/null` in the chroot (in addition to `90-mkinitcpio-i
 
 Realistic save: 15-30s on top of the existing mkinitcpio fix. VM-install benchmark vs the post-mkinitcpio-fix baseline still pending.
 
+### Performance — guard `kiro_ucode.remove_ucode_package()` with a pre-existence check
+
+[kiro_ucode/main.py](usr/lib/calamares/modules/kiro_ucode/main.py): the "wrong microcode" removal previously called `pacman -R --noconfirm <pkg>` unconditionally and caught the failure when the package wasn't there. Added a `pacman -Q` guard via a new `is_installed_in_target()` method mirroring the `kiro_remove_nvidia._is_installed_in_target()` pattern. When the wrong-vendor microcode isn't installed (the normal case — the live ISO ships microcode as bundled `.pkg.tar.zst` rather than as installed packages) we now skip the `pacman -R` call entirely.
+
+Save: small (~2-3s per install), but free. Counterpart fix for `kiro_remove_nvidia` was unnecessary — that module already had `_is_installed_in_target()` guarding the candidate list.
+
 ### Ruff cleanups (incidental, in the same file)
 
 [bootloader/main.py](etc/calamares/pkgbuild/modules/bootloader/main.py): four pre-existing lint hits in upstream-derived code, fixed while in the file:
