@@ -4,6 +4,74 @@
 
 ---
 
+## 2026-05-28 — multi-kernel install: cmdline-duplication fix + mkinitcpio churn cut
+
+Two install-time fixes surfaced by the first multi-kernel install (cachyos + zen, see [kiro-iso/DISTRO_TESTING.md](/home/erik/KIRO/kiro-iso/DISTRO_TESTING.md)).
+
+### Bug fix — duplicated `rw root=UUID=…` in second kernel's boot-loader entry
+
+**Symptom:** On a 2-kernel install, the first kernel's `/boot/efi/loader/entries/*.conf` had a clean `options` line; the second kernel's entry had `rw root=UUID=…` appearing **twice**. Root cause traced to `/etc/kernel/cmdline` itself being written with the duplicates — so any subsequent kernel install (`pacman -U linux-foo`) on the user's system would also inherit them.
+
+**Root cause:** [bootloader/main.py:133-148](etc/calamares/pkgbuild/modules/bootloader/main.py) — `get_kernel_params(uuid)` did:
+
+```python
+kernel_params = libcalamares.job.configuration.get("kernelParams", ["quiet"])
+```
+
+`libcalamares.job.configuration.get()` returns a **reference** to the config-stored list, not a copy. Every subsequent `.append("rw")` / `.append("root=UUID=…")` / `.extend(…)` mutated that shared, config-backed list. When `get_kernel_params()` is called more than once per install — which happens because `create_systemd_boot_conf()` is invoked once per installed kernel — the second call starts from the already-mutated list and re-appends, producing the duplicates.
+
+`quiet nowatchdog` come from config and never duplicate (they're already in the list before any `.append`); only the runtime-appended `rw` + `root=UUID=` show the doubling. That signature confirmed the diagnosis precisely.
+
+**Fix:** defensive copy via `list(…)` wrapper. One line:
+
+```python
+kernel_params = list(libcalamares.job.configuration.get("kernelParams", ["quiet"]))
+```
+
+Now every call starts from a fresh local list; the config-stored value is never mutated. Long comment block left in the code explaining why — the bug is the kind that takes hours to re-diagnose if it ever regresses.
+
+### Performance — collapsed mkinitcpio passes from 5 → 1 during install
+
+**Observation:** A 2-kernel install ran `==> Building image from preset` **5 times** (10 image builds total) during a ~4-minute Calamares run — `~30-60s of pure churn`. Root cause: every package operation in the install pipeline triggers the upstream `/usr/share/libalpm/hooks/90-mkinitcpio-install.hook`, which rebuilds initramfs for every installed kernel. Triggering events seen 2026-05-28:
+
+1. `nvidia-*` DKMS removal in `kiro_remove_nvidia` (modules dir change)
+2. The official Calamares `initcpiocfg` + `Creating initramfs with mkinitcpio…` job (job 23-24 of 41)
+3. `pacman -Rs --noconfirm mkinitcpio-archiso` in the packages module (initcpio files dir change)
+4. Microcode reinstall in `kiro_ucode`
+5. Second pass after another microcode-related action
+
+Only **#2** is needed — it's the explicit Calamares job that invokes `mkinitcpio -P` directly (not via the hook) with the final `/etc/mkinitcpio.conf`. The other four are hook-triggered duplicates of the same work.
+
+**Fix:** standard `etc/pacman.d/hooks/<hookname>` override pattern:
+
+- **`kiro_before`** (job 21/41, early): new `suppress_mkinitcpio_hook()` step that symlinks `<target>/etc/pacman.d/hooks/90-mkinitcpio-install.hook` → `/dev/null`. Pacman's hook-resolver prefers `/etc/pacman.d/hooks/` over `/usr/share/libalpm/hooks/`, so a `/dev/null` override silently nullifies the upstream hook. Best-effort: a failure here only loses the optimisation, doesn't break the install.
+
+- **`kiro_final`** (job 39/41, end): new restore block at the very end of `run()`, after every package operation in this module. Removes the symlink so the user's first `pacman -Syu` rebuilds initramfs normally on kernel upgrades. **MUST run** — a stuck `/dev/null` symlink would leave the user's system unable to refresh initramfs after any future kernel package change. Wrapped in its own try/except so an earlier kiro_final failure can't skip it.
+
+The explicit Calamares mkinitcpio job at step 23-24 still runs because it invokes mkinitcpio directly, not via the pacman hook — so the source-of-truth initramfs pass is preserved. Estimated save: ~30-60s on a 2-kernel install (5 hook-triggered passes × 2 kernels = 10 image builds → 1 pass × 2 kernels = 2 image builds).
+
+### Ruff cleanups (incidental, in the same file)
+
+[bootloader/main.py](etc/calamares/pkgbuild/modules/bootloader/main.py): four pre-existing lint hits in upstream-derived code, fixed while in the file:
+
+- L659: `not (x in y)` → `x not in y` (E713)
+- L858 (refind branch): removed unused `install_efi_directory = …` assignment (F841)
+- L896: stripped unnecessary `f""` prefix (F541)
+- L949: `install_hybrid_grub == True` → `install_hybrid_grub` (E712)
+
+### Files modified
+
+- `etc/calamares/pkgbuild/modules/bootloader/main.py` (cmdline defensive copy + 4 ruff fixes)
+- `usr/lib/calamares/modules/kiro_before/main.py` (`suppress_mkinitcpio_hook` + register)
+- `usr/lib/calamares/modules/kiro_final/main.py` (restore block at end of `run()`)
+
+### Follow-ups
+
+- Mirror to `kiro-calamares-config-next` once verified.
+- Verification path: rebuild `kiro-calamares-config-git`, rebuild ISO, re-test VM install, then bare metal — confirm zen entry's cmdline is single-`rw`-single-`root=UUID=` AND grep `==> Building image` in Calamares.log returns 2 lines (one per kernel) instead of 10.
+
+---
+
 ## 2026-05-27 — kiro_final: remove the live-only desktop-launcher trust helper
 
 `kiro_final` now removes **`/usr/local/bin/kiro-trust-desktop-launchers`** from the installed system. That helper is a new live-ISO autostart (added in `kiro-iso`) that pre-trusts the **Install kiro** desktop launcher so XFCE/Thunar doesn't prompt — useful only on the live session, so it's added to the `paths_to_remove` list. Its autostart entry under `/home/liveuser/.config/autostart/` needs no explicit cleanup: `removeuser` deletes the live user's home earlier in the sequence, so listing it could even error depending on timing.
