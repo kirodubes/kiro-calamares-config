@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-05-29 — `[cachyos]` repo disabled by default on the installed system
+
+**What Changed**
+
+`kiro_final` now comments out the `[cachyos]` repo (header + its `Include` line) in the target `/etc/pacman.conf` at the end of the install. cachyos stays **enabled during** the install — chwd pulls its driver packages from it — and is only disabled afterward, so nothing about driver selection changes. The keyring and mirrorlist remain installed; a user re-enables cachyos by uncommenting the two lines.
+
+Rationale: keeps `pacman -Syu` from silently swapping base packages for cachyos-optimized rebuilds, leaving the installed system closer to stock Arch with cachyos as opt-in. Safe for the **default kernel** because `chaotic-aur` stays enabled and carries `linux-cachyos`/`-headers`, so updates keep flowing. (If `chaotic-aur` is ever dropped, this must be revisited — cachyos would become the sole source for `linux-cachyos`.)
+
+**Technical Details**
+
+- [usr/lib/calamares/modules/kiro_final/main.py](usr/lib/calamares/modules/kiro_final/main.py) — new private `_disable_repo(target_root, repo)` helper comments a repo section (header + body lines until a blank line or next `[section]`); idempotent. Called for `cachyos` from `run()`, after the tuned pin and before bootloader config. Placement is well after chwd in the exec sequence, so drivers install before the repo is disabled.
+- chwd skip-marker text ([chwd/main.py](usr/lib/calamares/modules/chwd/main.py)) updated: the retry hint now tells the user to uncomment `[cachyos]` if a driver package can't be found.
+- Verified post-install by `kiro-audit`'s `check_pacman_repos` ([edu-system-files](/home/erik/EDU/edu-system-files/CHANGELOG.md)): PASS when cachyos is commented, soft WARN if re-enabled or absent.
+
+**Files Modified**
+- `usr/lib/calamares/modules/kiro_final/main.py`
+- `usr/lib/calamares/modules/chwd/main.py`
+
+## 2026-05-29 — chwd failure is now non-fatal (install no longer aborts)
+
+**What Changed**
+
+On a laptop install, `chwd --autoconfigure` selected a driver profile whose package set included a package that none of the configured target repos carried. pacman aborted the transaction, the chwd module returned a `(error_title, error_description)` tuple, and Calamares **aborted the whole installation** — leaving the user with no installed system over a missing driver package.
+
+The chwd module now treats a chwd failure as **non-fatal**. When `chwd --autoconfigure` exits non-zero, the module logs a `libcalamares.utils.warning`, writes a breadcrumb to `/var/log/kiro-chwd-skipped.log` on the target, and returns `None` so the install completes on the open driver (nouveau/mesa, already in the ISO). This is safe because pacman transactions are atomic (a missing target installs nothing) and chwd's own `pre_remove` hook removes any mkinitcpio drop-ins it had written, so a failed run leaves no half-configured state.
+
+**Technical Details**
+
+- [usr/lib/calamares/modules/chwd/main.py](usr/lib/calamares/modules/chwd/main.py) — `run()` no longer returns the error tuple from `run_in_host`; on failure it warns, calls the new private `_record_skip(root_mount_point, detail)` helper, sets progress to 1.0, and returns `None`.
+- `_record_skip` writes `/var/log/kiro-chwd-skipped.log` (reason + retry hint) into the chroot; an `OSError` while writing is itself non-fatal (warn only).
+- Considered a true pre-flight `pacman -Sp` dry-run (the original ask) but chose best-effort: identical end state (drivers if available, else open driver + install intact), ~5 lines, and zero coupling to chwd internals so it survives chwd upstream changes.
+- The skip is **not silent**: `kiro-audit`'s new `check_chwd` ([edu-system-files](/home/erik/EDU/edu-system-files/CHANGELOG.md)) surfaces the marker as a WARN on the installed system.
+
+**Files Modified**
+- `usr/lib/calamares/modules/chwd/main.py`
+
 ## 2026-05-28 — Hardware-aware install via **chwd** (synced from `kiro-calamares-config-next`)
 
 The chwd Calamares module developed and validated in [kiro-calamares-config-next](../kiro-calamares-config-next/) on this same date is now mirrored here. Validated end-to-end on a VirtualBox install: module loaded correctly, read `driver=nonfree` from `/proc/cmdline`, invoked `arch-chroot $rootMountPoint chwd --autoconfigure` inside the target chroot, returned cleanly. All 42 Calamares jobs completed; install booted successfully. The companion package [chwd in nemesis_repo](../../EDU-PKG-BUILD/edu-pkgbuild-3party/chwd/) ships a patched profiles.toml fixing the upstream CachyOS `[virtualbox]` / `[vmware]` vendor_id swap, so VirtualBox guests now match the correct profile and install `virtualbox-guest-utils` via chwd's `--autoconfigure` path.
