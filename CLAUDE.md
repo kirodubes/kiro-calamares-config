@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Do not apply untested changes here. Validate in `kiro-calamares-config-next` first.
 
-Current kernel: **Liquorix** (`linux-lqx`) — `unpackfs2.conf` copies `vmlinuz-linux-lqx`, `kiro_before` renames to `linux-lqx.preset`, `kiro_final` removes `linux.preset` as a live-only artifact.
+Current kernels: **linux-cachyos** (default boot) + **linux-zen** (fallback). The installer is **kernel-agnostic** — the `kiro_kernel` module detects every `vmlinuz-*` on the live medium, copies each to the target, generates a matching `mkinitcpio` preset, and removes the live-only preset artifacts (`kiro`, `linux.preset`). No kernel name is hardcoded in the config, so the ISO's kernel can change with zero edits here.
 
 ## What This Is
 

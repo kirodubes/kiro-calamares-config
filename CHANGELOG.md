@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-05-29 — Dark installer: KiroDark Kvantum theme (mirrored from beta)
+
+**What Changed**
+
+Promoted the dark Calamares installer from `kiro-calamares-config-next` to production after a confirmed full install + reboot. The installer now renders dark (navy `#0F172A`, sky-blue `#0EA5E9` accent) matching the website, instead of the old light-grey default. The grey was caused by `-style breeze` falling back to the light default (breeze was never installed); the fix is a custom **KiroDark** Kvantum theme launched via `-style kvantum`.
+
+**Technical Details**
+
+- **branding.desc** — dark sidebar (`#0F172A`/`#E2E8F0`), `SidebarTextHighlight #0EA5E9` + `SidebarSelect #FFFFFF`, `productIcon` + `productWelcome` → `welcome.png` (dark-navy K).
+- **stylesheet.qss** — accent `#58B2D7` → `#0284C7`, nav-button `:hover` text → white, selections → white on `#0284C7`, dark scrollbar track.
+- **show.qml** — the dark text slideshow (brand slides + slate gradient backdrop that blends with KiroDark).
+- **welcome.png** — new dark-navy K (blends into the panel, no white box).
+- **kiro_final** — now removes `root/.config/Kvantum` from the target (KiroDark styles the installer-as-root but is live-only cruft on the installed system; verified gone post-install).
+- Paired: `kiro-iso` ships the KiroDark theme + `kvantum`; the production `calamares` package launcher drops `calamares-wrapper` and uses `-style kvantum`.
+
+**Files Modified**
+- `etc/calamares/branding/kiro/branding.desc`
+- `etc/calamares/branding/kiro/stylesheet.qss`
+- `etc/calamares/branding/kiro/show.qml`
+- `etc/calamares/branding/kiro/welcome.png` (new)
+- `usr/lib/calamares/modules/kiro_final/main.py`
+
+---
+
 ## 2026-05-29 — `kiro_plymouth` module: Kiro boot splash built into every kernel's initramfs
 
 **What Changed**

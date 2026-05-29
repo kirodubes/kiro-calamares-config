@@ -56,14 +56,12 @@ source=("calamares::git+https://codeberg.org/erikdubois/calamares"
         "cal-kiro.desktop"
         "kiro-trust-launchers.service"
         "kiro-trust-desktop-launchers"
-        "calamares_polkit"
-	"calamares-wrapper")
+        "calamares_polkit")
 sha256sums=('SKIP'
-            '2f0205c64d26eebed8c296419a383a6bae893e7d328bb85467fc1748b57909b6'
+            '1790542a77e476811314cc3e80dd460b91ad3fefd543c0bff409a156560ea2af'
             '4a5b19d5e274e11f6e3d1d17fcab87a5099322e1b4787791f8da0b730eff9fe2'
             '21fb4eea2177335a6002014ae101a13cf15cf309710589ac72c32dd5634a59e2'
-            '966c5f0834039dc6a7529e75f70417ba2510b1e643ffb49fd25855ce9dc244b4'
-            'e4c9b9601020f2362311b9776de1aa363f6ee5d1d78a4b171ba2630644819f5b')
+            '966c5f0834039dc6a7529e75f70417ba2510b1e643ffb49fd25855ce9dc244b4')
 
 prepare() {
 	cp -rv ../modules/* "$srcdir/$_pkgname/src/modules/"
@@ -126,9 +124,7 @@ package() {
 	ln -sf ../kiro-trust-launchers.service "$pkgdir/home/liveuser/.config/systemd/user/default.target.wants/kiro-trust-launchers.service"
 	chmod +x "$pkgdir/home/liveuser/Desktop/cal-kiro.desktop"
 
-	install -Dm644 "$srcdir/calamares-wrapper" "$pkgdir/usr/local/bin/calamares-wrapper"
 	install -Dm644 "$srcdir/kiro-trust-desktop-launchers" "$pkgdir/usr/local/bin/kiro-trust-desktop-launchers"
-	chmod +x "$pkgdir/usr/local/bin/calamares-wrapper"
 	install -Dm755 "$srcdir/calamares_polkit" "$pkgdir/usr/bin/calamares_polkit"
 	rm "$pkgdir/usr/share/applications/calamares.desktop"
 }
