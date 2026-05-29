@@ -1,8 +1,27 @@
 # CHANGELOG — kiro-calamares-config
 
-> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_final`, `kiro_kernel`, `kiro_remove_nvidia`, `kiro_ucode`.
+> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_final`, `kiro_kernel`, `kiro_plymouth`, `kiro_remove_nvidia`, `kiro_ucode`.
 
 ---
+
+## 2026-05-29 — `kiro_plymouth` module: Kiro boot splash built into every kernel's initramfs
+
+**What Changed**
+
+New Calamares job module `kiro_plymouth` adds the `plymouth` hook to the target's `/etc/mkinitcpio.conf`, so the Kiro boot splash (`plymouth-theme-kiro-logo`, shipped on the ISO) is built into the initramfs of **every** kernel the user selected — automatically, with no per-kernel work. It runs between `initcpiocfg` (which writes the HOOKS line) and `initcpio` (which runs `mkinitcpio -P` for all presets), inserting `plymouth` right after `udev` and leaving every other hook `initcpiocfg` decided untouched.
+
+Rationale: `initcpiocfg` recomputes HOOKS from the partition layout and never adds plymouth, so the hook had to be injected after it but before the single `mkinitcpio -P`. The splash is kernel-agnostic — that one rebuild embeds it into each preset, and any kernel installed later picks it up via pacman's own `mkinitcpio` run against the same conf. The `splash` cmdline param is already auto-appended by the `bootloader` module when plymouth is present, and the default theme is set at ISO-build time by the package's `.install`, so this module is the only missing piece.
+
+**Technical Details**
+
+- [usr/lib/calamares/modules/kiro_plymouth/main.py](usr/lib/calamares/modules/kiro_plymouth/main.py) — `add_hook()` inserts `plymouth` after `udev` via a `\budev\b` word-anchored regex (count=1), idempotent (no-op if `plymouth` already in HOOKS). Guarded by `plymouth_installed()` (checks `usr/bin/plymouth` in the target) so it never adds a hook that `mkinitcpio` can't satisfy. `module.desc` mirrors `kiro_kernel` (python job, `noconfig: true`).
+- [etc/calamares/settings.conf](etc/calamares/settings.conf) — `kiro_plymouth` added to the `exec` sequence between `initcpiocfg` and `initcpio`.
+- Mirrored verbatim into the `kiro-calamares-config-next` tree (module + sequence) per the lockstep convention.
+
+**Files Modified**
+- `usr/lib/calamares/modules/kiro_plymouth/main.py` (new)
+- `usr/lib/calamares/modules/kiro_plymouth/module.desc` (new)
+- `etc/calamares/settings.conf`
 
 ## 2026-05-29 — `[cachyos]` repo disabled by default on the installed system
 
