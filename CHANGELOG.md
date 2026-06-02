@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-06-01 — packages: `update_db: false` so a failing `pacman -Sy` no longer aborts the install
+
+**What Changed**
+- `packages.conf`: `update_db: true` → `false`.
+
+**Why**
+- A user (kiro-discussions #10) hit *"Package Manager error — pacman returned error code 1"* at ~99% on bare metal, on both NVIDIA boot entries. Root cause: the Calamares `packages@choice` module ran its own `pacman -Sy` on **every** install, and with `skip_if_no_internet: false` a failed `-Sy` (no internet / unreachable mirror in the live `pacman.conf`) is **fatal**, aborting near the end of the exec sequence. VMs passed only because NAT gave them internet.
+- The module's only operation here is `try_remove` of the live-only packages, and `pacman -R` resolves entirely against the **local** db — it never reads the sync dbs. So the `-Sy` was a gratuitous network precondition that bought the removals nothing while introducing the late, fatal failure mode. Disabling it removes the abort with no real loss.
+
+**Technical Details — consequence analysis**
+- **Orthogonal to driver install.** `update_db: false` touches *only* the `packages` module. Driver installation happens in the separate `chwd` module (`chwd --autoconfigure` → `pacman -S`), which is the part that genuinely needs a synced sync-db — and is untouched.
+- **`chwd` runs *before* `packages@choice`** in the sequence (`kiro_before → kiro_remove_nvidia → chwd → … → packages@choice`). So even when `packages` had `update_db: true`, that `-Sy` fired *after* chwd had already run — chwd never drew db freshness from the packages module. Its freshness has always come from `kiro_before.sync_pacman_databases()`'s best-effort `pacman -Sy`, which still runs. The change is therefore 100% orthogonal to all three `driver=` boot lines, including `nonfreechwd`.
+- **Boot line 3 (`driver=nonfreechwd`, "NVIDIA proprietary, auto-detect") is unaffected.** Online: `kiro_before` refreshes the db before `chwd` installs the detected profile — works as before. Offline / dead-mirror: `kiro_before`'s `-Sy` is skipped (`hasInternet=False`) or fails (caught → warn only), so chwd's `pacman -S` can't fetch — but `chwd` is **non-fatal by design** (atomic pacman transaction = nothing half-installed; its pre_remove hook cleans up its mkinitcpio drop-ins; it writes `/var/log/kiro-chwd-skipped.log` and the install continues on nouveau/mesa). No `~99%` abort on line 3 either way.
+- **Net:** the only signal `update_db: false` suppresses is the offline/dead-mirror condition, which is already treated as non-fatal upstream in `kiro_before`. Removing the packages-module `-Sy` eliminates the abort and *reduces* coupling (the module no longer depends on db state left by earlier modules).
+- **Follow-up trap to remember:** `update_db: false` is only safe while `operations:` stays removal-only. If a future `install:`/`try_install` is ever added here, it WILL need a synced db and this setting becomes dangerous — guard it at the `operations:` edit site.
+
+**Testing**
+- Needs a full **offline** install run (no network in the live session): confirm the install reaches 100% without aborting at `packages@choice`, and on the installed system `pacman -Q calamares-next mkinitcpio-archiso memtest86+ memtest86+-efi` shows all four removed.
+
+**Files Modified**
+- `etc/calamares/modules/packages.conf`
+
 ## 2026-05-31 — Three NVIDIA driver modes (free / nonfree / nonfreechwd)
 
 **What Changed**
