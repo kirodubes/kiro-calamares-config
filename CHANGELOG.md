@@ -16,6 +16,14 @@
 - **Validated on fresh `-next` installs before this port** (per the test-first rule): encrypted (LUKS2 btrfs) renders the graphical "Enter Password" prompt; unencrypted (ext4) boots cleanly with no prompt and no failed units. The `initcpiocfg` log confirmed `which plymouth → /usr/sbin/plymouth` → `Running build hook: [plymouth]` for both kernels.
 - Tradeoff: no busybox emergency recovery shell. **Switches ALL installs to the systemd initramfs** (both install types tested).
 
+### Also ported from `-next` the same day (full config sync, minus intentional prod/next divergence)
+- **`partition.conf`**: dropped the `availableFileSystemTypes: ["ext4"]` restriction → **btrfs** is now a selectable filesystem at install (default stays ext4). Encryption settings were already identical to `-next`; this is purely the btrfs enablement.
+- **`mount.conf`**: added the `/.snapshots → /@snapshots` btrfs subvolume (for snapshot tooling shipped opt-in via ATT).
+- **`usr/local/bin/add-kiro-repo` + `qdd-kiro-repo`**: idempotency bugfix — guard on an existing `[kiro_repo]` section + `set -euo pipefail`, so re-running can't create a duplicate section (which made pacman fail with "database already registered").
+- **Left intentionally divergent** (not synced): `packages.conf` (`calamares` vs `calamares-next`), `kiro_final/main.py` (self-removes `kiro-calamares-config` vs `…-next`), `CLAUDE.md` (repo role).
+- **Open decision flagged:** `luksGeneration: luks1` is unchanged in both, but the `-next` encrypted test install produced **LUKS2** — to reconcile before the next ISO ships (LUKS2 is fine for our layout: encrypted root, unencrypted `/boot` on the ESP, systemd-boot + sd-encrypt).
+- This config is **installer-only** (kiro_repo) — it reaches no existing user; it changes only what the next production ISO offers.
+
 ## 2026-06-01 — packages: `update_db: false` so a failing `pacman -Sy` no longer aborts the install
 
 **What Changed**
