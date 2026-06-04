@@ -1,8 +1,20 @@
 # CHANGELOG — kiro-calamares-config
 
-> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_final`, `kiro_kernel`, `kiro_plymouth`, `kiro_remove_nvidia`, `kiro_ucode`.
+> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_final`, `kiro_kernel`, `kiro_remove_nvidia`, `kiro_ucode`.
 
 ---
+
+## 2026-06-04 — systemd initramfs hooks (visible encrypted-boot LUKS prompt), ported from `-next`
+
+**What Changed**
+- **New `etc/calamares/modules/initcpiocfg.conf`** with `useSystemdHook: true` (+ `source: /etc/mkinitcpio.conf`).
+- **`settings.conf`**: removed `kiro_plymouth` from the exec sequence (`initcpiocfg → initcpio`).
+- **Deleted the `usr/lib/calamares/modules/kiro_plymouth/` module** entirely — redundant with stock `initcpiocfg` *and* buggy (it inserted `plymouth` only after a `udev` hook and silently no-op'd on systemd HOOKS, the cause of the invisible/text LUKS prompt).
+
+**Why**
+- Switching to the systemd hooks (`systemd` + `sd-encrypt`) makes `sd-encrypt` ask via `systemd-ask-password`, which Plymouth's built-in password agent renders reliably as a themed prompt (the CachyOS approach). Stock `initcpiocfg` (`detect_plymouth()`) then adds the `plymouth` hook before the encrypt hook, and `bootloader` writes `rd.luks.uuid=…` + `splash`. One flag, whole chain.
+- **Validated on fresh `-next` installs before this port** (per the test-first rule): encrypted (LUKS2 btrfs) renders the graphical "Enter Password" prompt; unencrypted (ext4) boots cleanly with no prompt and no failed units. The `initcpiocfg` log confirmed `which plymouth → /usr/sbin/plymouth` → `Running build hook: [plymouth]` for both kernels.
+- Tradeoff: no busybox emergency recovery shell. **Switches ALL installs to the systemd initramfs** (both install types tested).
 
 ## 2026-06-01 — packages: `update_db: false` so a failing `pacman -Sy` no longer aborts the install
 
