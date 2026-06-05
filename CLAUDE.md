@@ -108,7 +108,7 @@ Uses `systemd-detect-virt` and removes packages for VMs you are **not** running 
 
 All in [etc/calamares/modules/](etc/calamares/modules/). Key non-obvious settings:
 
-- **partition.conf** — EFI min 2GB, swap as file (no partition), LUKS v1, auto-partitioning disabled
+- **partition.conf** — EFI min 2GB, swap as file (no partition), LUKS v2 (grub unlocks LUKS2/Argon2id via GRUB 2.14), `defaultPartitionTableType` empty so Calamares auto-picks gpt on UEFI / msdos on BIOS, auto-partitioning disabled
 - **unpackfs1.conf / unpackfs2.conf** — two separate unpack steps (rootfs + kernel), with different weights (45 vs 5)
 - **packages.conf** — removes `calamares`, `mkinitcpio-archiso`, `memtest86+`, `memtest86+-efi` after install; `skip_if_no_internet: false`
 

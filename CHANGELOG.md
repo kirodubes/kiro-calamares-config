@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-06-05 — LUKS2 default + firmware-correct partition table (ported from `-next`)
+
+**What Changed**
+- **`partition.conf`**: `luksGeneration: luks1 → luks2`.
+- **`partition.conf`**: `defaultPartitionTableType: gpt → ""` (empty) so Calamares auto-picks **gpt on UEFI, msdos on BIOS**.
+
+**Why**
+- GRUB 2.14 (Arch `grub 2:2.14-1`, Jan 2026) added Argon2i/Argon2id KDF support, so GRUB now unlocks LUKS2/Argon2id. The old reason for forcing luks1 on GRUB machines is gone — every install can use the stronger LUKS2/Argon2id.
+- The empty partition-table is a **required companion**: a hardcoded `gpt` breaks legacy-BIOS GRUB installs (`grub-install` "embedding is not possible" — GPT has no `bios_grub` partition). Empty lets Calamares give BIOS an MBR (GRUB embeds in the post-MBR gap) and UEFI a GPT+ESP.
+- **Validated on real hardware before this port** (test-first rule): BIOS+grub+luks2 on *worf* and UEFI+grub+luks2 on *picard* both completed and booted — GRUB prompted for the passphrase and unlocked the LUKS2/Argon2id volume (up to ~1 GiB Argon2 memory cost). Full write-up in the nemesis CTT fork's `GRUB+LUKS2.md`.
+
+---
+
 ## 2026-06-04 — systemd initramfs hooks (visible encrypted-boot LUKS prompt), ported from `-next`
 
 **What Changed**
