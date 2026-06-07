@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-06-07 — Fix `kiro_remove_nvidia` for 390xx/580xx ISOs (install-blocking)
+
+**What Changed**
+- `kiro_remove_nvidia/main.py` now discovers the **actually-installed** NVIDIA driver stack and removes those real package names, instead of the hardcoded open-variant list `["nvidia-open-dkms","nvidia-utils","nvidia-settings"]`. New `installed_nvidia_stack()` (via `pacman -Qq`) + pure, testable `nvidia_stack_from_names()` matching `nvidia-*` packages ending in `dkms`/`utils`/`settings` — covers open, 390xx and 580xx. Removed `_is_installed_in_target` and the hardcoded `candidates`.
+
+**Why**
+- A 390xx (or 580xx) ISO ships `nvidia-390xx-{dkms,utils,settings}`, not `nvidia-utils`/`nvidia-settings`. The old check used `pacman -Q nvidia-utils`, which **resolves the provide** (`nvidia-390xx-utils`, exit 0) so the module thought `nvidia-utils` was installed — but `pacman -Rns nvidia-utils` does **not** resolve provides → `error: target not found` → `nvidia-remove-failed` → **install aborted on non-NVIDIA hardware**. Confirmed from a real Calamares install log. Removing the whole stack (dkms+utils+settings) in one transaction also avoids the dependency-order failure (the dkms driver depends on its `-utils`).
+
+**Technical Details**
+- `nvidia_stack_from_names()` is a pure function (no libcalamares) so the variant matching is unit-tested directly; verified it returns the right three packages for open/390xx/580xx and excludes decoys (`nvidia-prime`, `opencl-nvidia`, `lib32-nvidia-utils`).
+
+**Files Modified**
+- `usr/lib/calamares/modules/kiro_remove_nvidia/main.py`
+
+---
+
 ## 2026-06-05 — LUKS2 default + firmware-correct partition table (ported from `-next`)
 
 **What Changed**
