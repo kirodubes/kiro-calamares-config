@@ -4,7 +4,16 @@
 
 ---
 
-## 2026-06-07 — Fix `kiro_remove_nvidia` for 390xx/580xx ISOs (install-blocking)
+## 2026-06-08 — Promote GRUB boot-safety + spice-vdagent handling from -next
+
+**What Changed**
+- `kiro_final`: **(a)** added `spice-vdagent` to the `qemu` VM-cleanup profile (`("qemu-guest-agent", "spice-vdagent")`); **(b)** the systemd-boot bootloader branch now removes `kiro-bootloader-grub` **together with** `grub` in one `pacman -R` transaction (hook package first).
+
+**Why**
+- Promoting two changes validated in `kiro-calamares-config-next` (VirtualBox BIOS, QEMU BIOS, worf bare metal, fresh KVM install). **(a)** keeps the SPICE clipboard agent on kvm/qemu installs and strips it on VMware/VirtualBox/bare-metal (same lifecycle as `qemu-guest-agent`). **(b)** `kiro-bootloader-grub` (the new GRUB boot-safety hook package) `depends=grub`, so a plain `pacman -R grub` would fail the dependency — they must be removed in one transaction, hook package first. On grub installs both are kept.
+
+**Files Modified**
+- `usr/lib/calamares/modules/kiro_final/main.py` — `qemu` profile + bootloader removal branch.
 
 **What Changed**
 - `kiro_remove_nvidia/main.py` now discovers the **actually-installed** NVIDIA driver stack and removes those real package names, instead of the hardcoded open-variant list `["nvidia-open-dkms","nvidia-utils","nvidia-settings"]`. New `installed_nvidia_stack()` (via `pacman -Qq`) + pure, testable `nvidia_stack_from_names()` matching `nvidia-*` packages ending in `dkms`/`utils`/`settings` — covers open, 390xx and 580xx. Removed `_is_installed_in_target` and the hardcoded `candidates`.
