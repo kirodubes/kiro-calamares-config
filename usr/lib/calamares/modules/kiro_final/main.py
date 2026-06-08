@@ -242,10 +242,10 @@ VM_CLEANUP_PROFILES = {
 # Anything not listed (e.g. "qemu", "unknown") gets no cleanup — safer default
 # than guessing and uninstalling the host's own guest tools.
 VM_CLEANUP_BY_TYPE = {
-    "none":   ("vmware", "qemu", "vbox"),  # bare metal — strip all
-    "oracle": ("vmware", "qemu"),          # VirtualBox guest — keep vbox tools
-    "kvm":    ("vmware", "vbox"),          # KVM guest — keep qemu-guest-agent
-    "vmware": ("vmware", "qemu", "vbox"),  # preserved from prior behavior
+    "none":   ("vmware", "qemu", "vbox"),  # bare metal — strip all (incl. qemu+spice agents)
+    "oracle": ("vmware", "qemu"),          # VirtualBox guest — keep vbox tools, drop qemu+spice
+    "kvm":    ("vmware", "vbox"),          # KVM guest — keep qemu-guest-agent + spice-vdagent
+    "vmware": ("vmware", "qemu", "vbox"),  # VMware guest — keep vmware tools, drop qemu+spice
 }
 
 
