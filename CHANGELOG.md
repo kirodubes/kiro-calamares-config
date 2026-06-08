@@ -27,6 +27,19 @@
 **Files Modified**
 - `usr/lib/calamares/modules/kiro_remove_nvidia/main.py`
 
+### Design decision — root-on-ZFS and install-time snapshots ruled out (no config change)
+
+**What Changed**
+- Studied the CachyOS Calamares fork (`~/Documents/cachyos-calamares/`, see its `ZFS_STUDY.md`) for features Kiro might adopt. Outcome: **no config changes** — two candidate features were explicitly rejected and recorded here so they aren't re-proposed.
+- **Root-on-ZFS:** declined. ZFS's real wins (RAID-Z, ARC/L2ARC caching, `send`/`receive` replication) are multi-disk/server/NAS scenarios; Kiro's single-disk desktop audience is already served by the shipped btrfs stack. ZFS is out-of-tree (CDDL), so it rides on DKMS/prebuilt modules and a bad kernel bump can leave a box unbootable — against the kernel-agnostic rule.
+- **Install-time baseline snapshot** (the ArcoLinux / CachyOS `btrfs-installation-snapshot` pattern): declined. Kiro's reset story is user-driven — format-and-reinstall or take/restore a timeshift snapshot yourself. The empty `/@snapshots` subvolume in `mount.conf` is for the opt-in snapper + snap-pac + btrfs-assistant path, not for the installer to populate.
+
+**Why**
+- Everything else in the CachyOS fork is either already matched or beaten by Kiro (driver handling via `chwd` + 3 driver modes, offline microcode via `kiro_ucode`, kernel-agnostic install via `kiro_kernel`, firewalld instead of ufw) or conflicts with a deliberate Kiro decision (cachyos v3/v4/znver4 repos, bootloader/desktop packagechoosers). Recording the rejections keeps the lean, opinionated config from accreting showcase features that add maintenance cost without serving the typical user.
+
+**Files Modified**
+- None — decision record only.
+
 ---
 
 ## 2026-06-05 — LUKS2 default + firmware-correct partition table (ported from `-next`)
