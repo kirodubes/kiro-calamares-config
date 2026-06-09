@@ -1,8 +1,27 @@
 # CHANGELOG — kiro-calamares-config
 
-> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_final`, `kiro_kernel`, `kiro_remove_nvidia`, `kiro_ucode`.
+> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_bootloader`, `kiro_displaymanager`, `kiro_final`, `kiro_kernel`, `kiro_packages`, `kiro_remove_nvidia`, `kiro_ucode`.
 
 ---
+
+## 2026-06-09 — Custom kiro_bootloader / kiro_displaymanager / kiro_packages modules
+
+**What Changed**
+- Replaced three stock Calamares modules with in-tree custom Python modules, wired into `settings.conf`:
+  - **`kiro_bootloader`** (`bootloader.conf` → `kiro_bootloader.conf`) — handles both branches: systemd-boot on UEFI and `grub-install --target=i386-pc` + `grub-mkconfig` on BIOS.
+  - **`kiro_displaymanager`** (`displaymanager.conf` → `kiro_displaymanager.conf`) — configures the display manager / default session.
+  - **`kiro_packages`** (`packages.conf` → `kiro_packages.conf`) — install + post-install removal of installer-only packages.
+- Modules ship with their own `module.desc`, schema, and test suites under `usr/lib/calamares/modules/`.
+
+**Why**
+- Owning the bootloader/displaymanager/packages logic as Kiro modules gives full control over the install sequence (e.g. the DE-agnostic session mirror and the GRUB-on-systemd-boot cleanup) rather than depending on stock module behaviour.
+
+**Technical Details**
+- Validated on production ISO **v26.06.09** across both firmware paths and both `kiro_bootloader` branches — UEFI/systemd-boot (VM, picard, riker) and BIOS/grub (worf, `grub-install i386-pc → /dev/sda` → SUCCESS); kiro-audit 134–139 PASS / 0 FAIL on every target. See [kiro-iso/DISTRO_TESTING.md](../kiro-iso/DISTRO_TESTING.md) 2026-06-09.
+
+**Files Modified**
+- `etc/calamares/settings.conf`, `etc/calamares/modules/{kiro_bootloader,kiro_displaymanager,kiro_packages}.conf`
+- `usr/lib/calamares/modules/{kiro_bootloader,kiro_displaymanager,kiro_packages}/` (new module trees + tests)
 
 ## 2026-06-09 — Fix install-time package removal (production names, not beta)
 
