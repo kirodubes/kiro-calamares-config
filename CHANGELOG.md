@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-06-09 — Fix install-time package removal (production names, not beta)
+
+**What Changed**
+- The post-install cleanup targeted **beta** package names, so on a production install nothing
+  matched and the installer tools leaked onto the user's system. Swapped to production names:
+  - `kiro_packages.conf` `try_remove`: `calamares-next` → **`calamares`**,
+    `kiro-calamares-tweak-tool-nemesis` → **`kiro-calamares-tweak-tool`**.
+  - `kiro_final/main.py`: the systemd-boot GRUB removal `kiro-bootloader-grub-nemesis` →
+    **`kiro-bootloader-grub`** (now matches what the 2026-06-08 entry already described); the
+    self-removal of the installer config `kiro-calamares-config-next` → **`kiro-calamares-config`**
+    (+ its warning message).
+
+**Why**
+- This repo had been copied from `kiro-calamares-config-next` without reverting the `-next` /
+  `-nemesis` suffixes, so the removal logic referenced packages that a production ISO never
+  installs. Result on a real install: `calamares`, `kiro-calamares-tweak-tool`, and
+  `kiro-calamares-config` itself all stayed installed ("install-time tool leaked to user"), plus
+  GRUB was not removed on systemd-boot installs. The `-next` repo correctly keeps the beta names.
+
+**Files Modified**
+- `etc/calamares/modules/kiro_packages.conf`
+- `usr/lib/calamares/modules/kiro_final/main.py`
+
 ## 2026-06-08 — Promote GRUB boot-safety + spice-vdagent handling from -next
 
 **What Changed**
