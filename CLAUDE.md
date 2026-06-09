@@ -57,34 +57,38 @@ There is no linter configured for this repo. The Python modules in `usr/lib/cala
 **Exec phase** (automated steps, in order):
 ```
 partition → mount
-→ unpackfs@rootfs → unpackfs@vmlinuz
+→ unpackfs@rootfs → kiro_kernel
 → machineid → locale → keyboard → localecfg
 → luksbootkeyfile → luksopenswaphookcfg
 → fstab → networkcfg
-→ kiro_before → kiro_remove_nvidia
+→ kiro_before → kiro_remove_nvidia → chwd
 → initcpiocfg → initcpio → hwclock
-→ services-systemd → packages@choice
-→ removeuser → users → displaymanager
-→ kiro_ucode → grubcfg → bootloader
+→ services-systemd → kiro_packages
+→ removeuser → users → kiro_displaymanager
+→ kiro_ucode → grubcfg → kiro_bootloader
 → kiro_final → preservefiles → umount
 ```
 
 **Finish phase:** `finished` page.
 
-`unpackfs` and `packages` run as named instances (see `instances:` block in settings.conf): `rootfs` uses `unpackfs1.conf`, `vmlinuz` uses `unpackfs2.conf`, `choice` uses `packages.conf`.
+`unpackfs` runs as a single named instance `rootfs` (see `instances:` block in settings.conf), using `unpackfs1.conf`. Kernel copying is handled by the custom `kiro_kernel` module (no separate `vmlinuz` unpack step); package install/removal by `kiro_packages` (no stock `packages@choice` instance); display-manager and bootloader setup by `kiro_displaymanager` / `kiro_bootloader` (replacing the stock `displaymanager` / `bootloader` modules).
 
 ## Custom Python Modules
 
-All four live in [usr/lib/calamares/modules/](usr/lib/calamares/modules/). Each has a `main.py` and `module.desc`.
+These live in [usr/lib/calamares/modules/](usr/lib/calamares/modules/). Each has a `main.py` and `module.desc`.
 
 **Return convention:** all functions return `None` on success or a `(error_title, error_description)` tuple on failure. The `run()` entrypoint aggregates these. Non-fatal errors log via `libcalamares.utils.warning()` and do not abort the install.
 
 | Module               | Position in exec     | Purpose                                                                                                          |
 |----------------------|----------------------|------------------------------------------------------------------------------------------------------------------|
+| `kiro_kernel`        | After unpackfs@rootfs | Detects every `vmlinuz-*` on the live medium, copies each to the target, generates a matching `mkinitcpio` preset, removes live-only preset artifacts (replaces the old `unpackfs@vmlinuz` step) |
 | `kiro_before`        | After networkcfg     | Pacman lock wait, keyring init, mkinitcpio preset rename (`kiro` → `linux.preset`), makepkg optimization         |
 | `kiro_remove_nvidia` | After kiro_before    | Reads `driver=` kernel param; removes NVIDIA on `free` + `nonfreechwd`, keeps the baked `nvidia-open-dkms` on `nonfree` |
 | `chwd`               | After kiro_remove_nvidia | Runs `chwd --autoconfigure` **only** on `driver=nonfreechwd`; picks the right driver for the detected GPU      |
-| `kiro_ucode`         | After displaymanager | Detects CPU (AMD/Intel via hwinfo), installs bundled `.pkg.tar.zst` from `/etc/calamares/packages/`              |
+| `kiro_packages`      | After services-systemd | Installs the package selection, then removes installer-only packages post-install (replaces stock `packages@choice`) |
+| `kiro_displaymanager`| After users          | Configures the display manager and default session (replaces stock `displaymanager`)                            |
+| `kiro_ucode`         | After kiro_displaymanager | Detects CPU (AMD/Intel via hwinfo), installs bundled `.pkg.tar.zst` from `/etc/calamares/packages/`         |
+| `kiro_bootloader`    | After grubcfg        | Installs the bootloader — systemd-boot on UEFI, `grub-install --target=i386-pc` + `grub-mkconfig` on BIOS (replaces stock `bootloader`) |
 | `kiro_final`         | Before preservefiles | Permissions, skel copy, live-only file cleanup, env config, bootloader cleanup, VM package removal, self-removal |
 
 ### NVIDIA driver modes (`driver=` kernel cmdline)
@@ -110,7 +114,7 @@ All in [etc/calamares/modules/](etc/calamares/modules/). Key non-obvious setting
 
 - **partition.conf** — EFI min 2GB, swap as file (no partition), LUKS v2 (grub unlocks LUKS2/Argon2id via GRUB 2.14), `defaultPartitionTableType` empty so Calamares auto-picks gpt on UEFI / msdos on BIOS, auto-partitioning disabled
 - **unpackfs1.conf / unpackfs2.conf** — two separate unpack steps (rootfs + kernel), with different weights (45 vs 5)
-- **packages.conf** — removes `calamares`, `mkinitcpio-archiso`, `memtest86+`, `memtest86+-efi` after install; `skip_if_no_internet: false`
+- **kiro_packages.conf** — removes `calamares`, `kiro-calamares-tweak-tool`, `mkinitcpio-archiso`, `memtest86+`, `memtest86+-efi` after install; `skip_if_no_internet: false`
 
 ## Branding
 
