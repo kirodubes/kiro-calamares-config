@@ -462,11 +462,11 @@ def run():
         loader_conf = os.path.join(target_root, "boot/efi/loader/loader.conf")
         if os.path.exists(loader_conf):
             # systemd-boot is in use, remove GRUB and its boot-safety hooks.
-            # kiro-bootloader-grub depends on grub, so they must go in one
+            # kiro-bootloader-grub-nemesis depends on grub, so they go in one
             # transaction (hook package first) or `pacman -R grub` fails.
             libcalamares.utils.debug("systemd-boot detected. Removing GRUB")
             try:
-                pkgs = [p for p in ("kiro-bootloader-grub", "grub")
+                pkgs = [p for p in ("kiro-bootloader-grub-nemesis", "grub")
                         if is_package_installed(p, target_root)]
                 if pkgs:
                     subprocess.run(
@@ -521,12 +521,12 @@ def run():
     libcalamares.utils.debug("Removing installer package")
     try:
         subprocess.run(
-            ["chroot", target_root, "pacman", "-R", "--noconfirm", "kiro-calamares-config"],
+            ["chroot", target_root, "pacman", "-R", "--noconfirm", "kiro-calamares-config-next"],
             check=True
         )
         results["Remove installer package"] = "SUCCESS"
     except subprocess.CalledProcessError as e:
-        libcalamares.utils.warning(f"Failed to remove kiro-calamares-config: {e}")
+        libcalamares.utils.warning(f"Failed to remove kiro-calamares-config-next: {e}")
         results["Remove installer package"] = "FAILED"
 
     # ========================
