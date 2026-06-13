@@ -4,6 +4,15 @@
 
 ---
 
+## 2026.06.13
+
+### Trust the Kiro signing key on the installed target (production)
+- `kiro_before`'s `initialize_pacman_keys()` now runs `pacman-key --populate kiro` after archlinux/chaotic. Without it, the re-init drops the Kiro key, leaving `nemesis_repo`/`kiro_repo` (now `SigLevel Required` via the inherited global on prod ISOs) unverifiable → broken syncs on a fresh install. Promotes the fix proven in `kiro-calamares-config-next` to production, paired with the `kiro-iso` enforcement flip (same release).
+- `qdd-kiro-repo` already appends `[kiro_repo]` with no per-repo `SigLevel` (inherits global) — no change.
+
+### Files Modified
+- `usr/lib/calamares/modules/kiro_before/main.py`
+
 ## 2026-06-09 — Custom kiro_bootloader / kiro_displaymanager / kiro_packages modules
 
 **What Changed**
