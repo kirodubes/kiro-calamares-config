@@ -4,6 +4,17 @@
 
 ---
 
+## 2026.06.19
+
+### Remove the GRUB theme on systemd-boot installs
+- `kiro_final`'s systemd-boot cleanup (step 9) now also removes the new
+  **`kiro-grub-theme`** package, alongside `kiro-bootloader-grub` and `grub`.
+- **Why:** on UEFI installs `kiro_bootloader` lays down systemd-boot, so GRUB and
+  its theme are dead weight. `kiro-grub-theme` `depends=('grub')`, so it is
+  removed in the same `pacman -R` transaction (dependents listed before `grub`,
+  or the removal fails). Guarded by `is_package_installed`, so it is a no-op when
+  the theme was never installed (BIOS installs keep GRUB + theme).
+
 ## 2026.06.13
 
 ### Trust the Kiro signing key on the installed target (production)
