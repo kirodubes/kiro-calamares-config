@@ -4,6 +4,20 @@
 
 ---
 
+## 2026.06.21
+
+### Add the installed user to the `i2c` group
+- `users.conf` `defaultGroups` now includes `i2c`, so every account Calamares creates can access
+  `/dev/i2c-*` from the first instant of the session.
+- **Why:** on Plasma, `powerdevil` probes external-monitor brightness over DDC/CI (i2c) at session
+  startup, *before* `systemd-logind` applies its `uaccess` ACL — losing the race and flooding the journal
+  with `Open failed for /dev/i2c-1, errno=EACCES`. Group membership is present from login, so it removes
+  the race and makes external-monitor brightness work immediately. Harmless on non-Plasma editions
+  (XFCE/MATE/Cinnamon/tiling) — the group is simply unused there.
+- The `i2c` group already exists on installed systems (created by i2c-tools/ddcutil). The live ISO is
+  intentionally **not** changed — its session only runs for the ~15-minute install, so the spam there is
+  irrelevant.
+
 ## 2026.06.19
 
 ### Restore the GRUB theme to /boot before grub-mkconfig
