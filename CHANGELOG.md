@@ -4,6 +4,23 @@
 
 ---
 
+## 2026.06.24
+
+### Propagate the chosen keyboard layout to Plasma Wayland (AZERTY fix)
+- `kiro_final` now writes `XKBLAYOUT=` (+ `XKBMODEL`/`XKBVARIANT`) into the target's
+  `/etc/vconsole.conf`, mirrored from the `Option "XkbLayout"` Calamares wrote to
+  `/etc/X11/xorg.conf.d/00-keyboard.conf`. New `configure_x11_keymap()` helper, called as
+  step 6, layout-agnostic (no hardcoding, no GlobalStorage threading).
+- **Why:** Kiro Plasma is a **Wayland-only** edition. Calamares writes `KEYMAP=` (console) to
+  `vconsole.conf` and the layout to `00-keyboard.conf`, but `systemd-localed` sources its X11
+  layout from `vconsole.conf`'s `XKBLAYOUT=` — which was never written. Result: `localectl`
+  reported X11 Layout `unset`, and KWin (Wayland) fell back to `us` regardless of the user's
+  choice (e.g. Belgian/AZERTY came up QWERTY). Verified on a live VM.
+- Runs for **all** editions (DE-agnostic) — harmless on the X11 editions (XFCE / tiling WMs),
+  which already read the layout from `00-keyboard.conf`; it just keeps `localectl` consistent.
+- **Paired with** `kiro-plasma-system-settings` shipping `/etc/skel/.config/kwinrc`
+  `[Wayland] FollowLocale1=true` (KWin must be told to follow `locale1`). Both halves required.
+
 ## 2026.06.21
 
 ### Add the installed user to the `i2c` group
