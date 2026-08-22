@@ -4,6 +4,79 @@
 
 ---
 
+## 2026.08.22
+
+### Calamares config pass against the CachyOS study (4 adopted, 6 rejected)
+
+**What Changed**
+
+Worked the full 10-item action list of `Kiro-HQ/STUDIES/CACHYOS-CALAMARES-STUDY.md`
+to a close. Four items landed as config changes; six were deliberately rejected
+(one of them because the study's claim was simply wrong). Nothing is left open.
+
+- **ESP minimum size raised, 32MiB → 1024MiB.** `kiro_bootloader` installs
+  systemd-boot and calls `kernel-install`, which puts the kernel and initramfs on
+  the ESP. A 32MiB floor let Calamares accept a tiny pre-existing ESP (the classic
+  100MB Windows dual-boot one), which then fails on install or on a later kernel
+  update.
+- **Per-filesystem mount options.** ext4 / xfs / f2fs previously fell through to a
+  generic `defaults, noatime` — including ext4, which is the default filesystem.
+  btrfs compression is now declared per device class via `ssdOptions`/`hddOptions`.
+- **`@snapshots` subvolume dropped.** Kiro ships Timeshift, not snapper, so the
+  subvolume had nothing writing to it. It also actively blocked the upgrade path
+  it appeared to enable: `snapper -c root create-config /` refuses when
+  `/.snapshots` already exists.
+- **`hostname.template: "kiro-${cpu}"`** so users who skip the field get a
+  machine-specific name, and **`forbidden_names` expanded from `[root]` to 40
+  entries**.
+- **`screen` requirement added** to the welcome page's check list (warn-only).
+
+**Technical Details**
+
+- `forbidden_names` was built from Kiro's own reality rather than copied from
+  CachyOS: `awk -F: '$3 < 1000 {print $1}' /etc/passwd` on an installed system,
+  plus `nobody`. This is a UX fix, not a security fix — `useradd` already refuses
+  an existing account, so the old behaviour was an install that failed partway
+  through instead of a clear message on the users page.
+- `screen` is a bare check name with no companion config key; Calamares compares
+  the largest screen's `availableSize()` against branding's minimum window size.
+  Kept out of `required:` on purpose — a cramped display should warn, not block an
+  install the user can still drive.
+- The `@snapshots` removal carries an inline comment explaining why, so it does
+  not get "fixed" back in by a later reader.
+- **`nvmeOptions` was deliberately not copied from CachyOS.** It is implemented
+  only in their `cachyos-calamares-next` fork; stock Calamares — which Kiro ships
+  — reads `ssdOptions`/`hddOptions` only and classifies NVMe as SSD, so the key
+  would have been silently inert. `hostname.template`/`${cpu}` and the `screen`
+  check were checked against stock the same way and are supported.
+- **`mount.conf` is authoritative for the installed system's fstab**, not
+  `fstab.conf`: `mount` publishes `mountOptionsList` to global storage
+  (`mount/main.py:392`) and `fstab` consumes it (`fstab/main.py:408`). Only
+  `crypttabOptions` and `tmpOptions` remain live keys in `fstab.conf` — noted
+  because Kiro's `fstab.conf` still carries `mountOptions`, `efiMountOptions` and
+  `ssdExtraMountOptions`, which stock never reads. Left untouched this pass.
+- Rejections worth recording: the bootloader chooser is **not** added to Calamares
+  because kiro-calamares-tweak-tool already makes that choice pre-launch
+  (`BOOTLOADERS = ("systemd-boot", "grub")`, written straight into
+  `kiro_bootloader.conf`); mirror ranking is skipped because only the
+  `driver=nonfreechwd` boot entry goes online and the shipped mirrorlist is
+  already tier-1 geo-CDNs, which ranking can only make worse; the keyring retry
+  loop is skipped because `pacman-key --populate` reads keyrings from local disk
+  and is deterministic, unlike CachyOS's networked `pacman -Sy`.
+- One study claim was **withdrawn as false**: `fstrim.timer`, `bluetooth.service`
+  and `avahi-daemon` are all enabled, via `.wants` symlinks in the ISO's airootfs
+  that `unpackfs` clones into the target. The original audit missed them because
+  it was a content grep, and symlinks have no content to match.
+
+**Files Modified**
+
+- `etc/calamares/modules/partition.conf`
+- `etc/calamares/modules/mount.conf`
+- `etc/calamares/modules/users.conf`
+- `etc/calamares/modules/welcome.conf`
+
+---
+
 ## 2026.08.18
 
 ### Slideshow — correct the desktop count (13 → 30)
