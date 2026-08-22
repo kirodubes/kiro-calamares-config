@@ -6,7 +6,7 @@
 
 ## 2026.08.22
 
-### Calamares config pass against the CachyOS study (4 adopted, 6 rejected)
+### Calamares config pass against the CachyOS study (3 adopted, 7 rejected)
 
 **What Changed**
 
@@ -19,13 +19,10 @@ to a close. Four items landed as config changes; six were deliberately rejected
   the ESP. A 32MiB floor let Calamares accept a tiny pre-existing ESP (the classic
   100MB Windows dual-boot one), which then fails on install or on a later kernel
   update.
-- **Per-filesystem mount options.** ext4 / xfs / f2fs previously fell through to a
-  generic `defaults, noatime` — including ext4, which is the default filesystem.
-  btrfs compression is now declared per device class via `ssdOptions`/`hddOptions`.
-- **`@snapshots` subvolume dropped.** Kiro ships Timeshift, not snapper, so the
-  subvolume had nothing writing to it. It also actively blocked the upgrade path
-  it appeared to enable: `snapper -c root create-config /` refuses when
-  `/.snapshots` already exists.
+- **Per-filesystem mount options for ext4 / xfs / f2fs.** These previously fell
+  through to a generic `defaults, noatime` — including ext4, which is the default
+  filesystem. The btrfs entry is deliberately left unchanged
+  (`defaults, noatime, compress=zstd`); see Technical Details.
 - **`hostname.template: "kiro-${cpu}"`** so users who skip the field get a
   machine-specific name, and **`forbidden_names` expanded from `[root]` to 40
   entries**.
@@ -42,13 +39,23 @@ to a close. Four items landed as config changes; six were deliberately rejected
   the largest screen's `availableSize()` against branding's minimum window size.
   Kept out of `required:` on purpose — a cramped display should warn, not block an
   install the user can still drive.
-- The `@snapshots` removal carries an inline comment explaining why, so it does
-  not get "fixed" back in by a later reader.
-- **`nvmeOptions` was deliberately not copied from CachyOS.** It is implemented
-  only in their `cachyos-calamares-next` fork; stock Calamares — which Kiro ships
-  — reads `ssdOptions`/`hddOptions` only and classifies NVMe as SSD, so the key
-  would have been silently inert. `hostname.template`/`${cpu}` and the `screen`
-  check were checked against stock the same way and are supported.
+- **The btrfs device-class split was tried and reverted; the btrfs line is
+  unchanged.** CachyOS's block uses `nvmeOptions: [ compress=zstd:1 ]`, which is
+  implemented only in their `cachyos-calamares-next` fork — stock Calamares does
+  not read the key at all (absent from both `mount/main.py` and
+  `mount.schema.yaml`), so it would have been silently inert. Falling back to
+  `hddOptions`/`ssdOptions` with the same value in both branches is equally
+  pointless: stock buckets solely on
+  `/sys/block/<dev>/queue/rotational == 0` (`is_ssd_disk()`), so NVMe and SATA SSD
+  share one bucket and the split resolves to exactly what the single line already
+  said. Left as `options: [ defaults, noatime, compress=zstd ]` with a comment.
+- **`@snapshots` is kept.** Briefly dropped, then reversed: ATT already depends on
+  the subvolume being pre-staged — its snapper path (`functions.py:1790-1803`)
+  detaches `/.snapshots`, lets `snapper create-config` run, then remounts
+  `@snapshots` as the store. Calamares pre-stages, ATT consumes; that is not a
+  half-state. snapper is still not shipped — Timeshift remains the snapshot tool.
+- `hostname.template`/`${cpu}` and the welcome `screen` check were verified
+  against stock Calamares source before being added, and both are supported.
 - **`mount.conf` is authoritative for the installed system's fstab**, not
   `fstab.conf`: `mount` publishes `mountOptionsList` to global storage
   (`mount/main.py:392`) and `fstab` consumes it (`fstab/main.py:408`). Only
@@ -68,10 +75,49 @@ to a close. Four items landed as config changes; six were deliberately rejected
   that `unpackfs` clones into the target. The original audit missed them because
   it was a content grep, and symlinks have no content to match.
 
+### fstab.conf — remove three keys dead since 2021, add the required `tmpOptions`
+
+**What Changed**
+
+`fstab.conf` was validated against the real schema in
+`/home/erik/DATA/code-berg-calamares-erik/src/modules/fstab/fstab.schema.yaml`
+and was invalid four ways: it carried `mountOptions`, `efiMountOptions` and
+`ssdExtraMountOptions` — none of which the module reads — and lacked
+`tmpOptions`, which the schema marks required. The file is now
+`crypttabOptions` + `tmpOptions` only and validates clean.
+
+**Technical Details**
+
+- All three keys were removed upstream in one commit, `03f2e4560`
+  *"[mount,fstab] Move mounting logic to the mount module"* (2021-12-26), which
+  replaced them with `global_storage.value("mountOptionsList")`. They were never
+  reintroduced — `git grep` at HEAD returns 0 — so they had been inert for four
+  years and eight months. Per-filesystem options come from `mount.conf` via the
+  mount module; `fstab.conf` never had a say.
+- Nothing warns about this: schema validation is CI-only
+  (`ci/configvalidator.py`), and nothing in the C++ runtime validates module
+  configs. Unknown keys are silently dropped, missing ones silently defaulted.
+- `ssdExtraMountOptions: btrfs: discard=async,ssd` was **dropped rather than
+  migrated** to `mount.conf`'s `ssdOptions`. It had never applied to any install,
+  and continuous discard is the worse choice beside the periodic `fstrim.timer`
+  Kiro already enables via airootfs `.wants` symlinks. No installed system
+  changes behaviour.
+- `mountOptions.btrfs` here carried `noautodefrag`, which `mount.conf` does not —
+  a silent disagreement that `mount.conf` has been winning all along.
+- `tmpOptions` is set to exactly the values Calamares was already falling back to
+  internally (`fstab/main.py:224-238`: `tmpfs = ssd.get("tmpfs", True)`,
+  `options = ssd.get("options", "defaults,noatime,mode=1777")`). **Behaviour is
+  unchanged** — every SSD/NVMe install already got
+  `tmpfs /tmp tmpfs defaults,noatime,mode=1777 0 0`; it is now a decision in the
+  file rather than a default inherited from Calamares' source. The block is gated
+  on the root disk being non-rotational, so spinning-disk roots get no `/tmp`
+  line and systemd's `tmp.mount` applies.
+
 **Files Modified**
 
+- `etc/calamares/modules/fstab.conf`
 - `etc/calamares/modules/partition.conf`
-- `etc/calamares/modules/mount.conf`
+- `etc/calamares/modules/mount.conf` (ext4/xfs/f2fs entries + btrfs comment only)
 - `etc/calamares/modules/users.conf`
 - `etc/calamares/modules/welcome.conf`
 
