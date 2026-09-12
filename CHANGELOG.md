@@ -65,10 +65,15 @@ installed system follows them there instead of defaulting back to the kernel tha
   walks it forwards, and `grub_move_to_front` prepends. Because Kiro also sets
   `GRUB_DISABLE_SUBMENU: true`, the submenu branch at `10_linux:290` never fires and every kernel
   is emitted at top level in list order, so the primary is menu entry 0.
-- `GRUB_DEFAULT: "saved"` becomes `set default="${saved_entry}"` (`00_header:37`, `:71`), and
-  `grubcfg.conf` sets no `GRUB_SAVEDEFAULT` — so nothing ever writes `saved_entry`. It stays empty
-  until the user chooses an entry in the menu, and GRUB boots entry 0 meanwhile. Being first is
-  therefore what makes the primary the default, on a fresh install and after every kernel upgrade.
+- **Correction, from the BIOS install on 2026-09-12.** An earlier draft of this entry reasoned from
+  `grubcfg.conf`'s `GRUB_DEFAULT: "saved"` and `GRUB_DISABLE_SUBMENU: true`. Neither reaches the
+  installed `/etc/default/grub`: that file is owned by the `grub` package, `grubcfg` runs with
+  `overwrite: false`, and the installed copy carries `GRUB_DEFAULT=0` with no `GRUB_DISABLE_SUBMENU`
+  at all. The real chain is simpler and stronger than the one described: `GRUB_DEFAULT=0` produces
+  a literal `set default="0"` in `grub.cfg`, and entry 0 is the single top-level
+  `menuentry 'kiro Linux'` that `10_linux` builds from the first kernel in its list — the one
+  `GRUB_TOP_LEVEL` moves to the front. A submenu ("Advanced options for kiro Linux") is generated
+  and holds every kernel; it does not affect which entry is 0.
 - `set_grub_top_level()` is called unconditionally, including on systemd-boot installs. That is
   safe rather than sloppy: `grub 2:2.14-1` is on the ISO package list, so `/etc/default/grub` is
   always owned by the `grub` package and the function can never leave an unowned file behind to
