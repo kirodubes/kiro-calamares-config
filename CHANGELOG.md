@@ -6,6 +6,67 @@
 
 ## 2026.09.12
 
+### The installed system now boots the kernel the user actually booted live
+
+Which kernel an installed Kiro defaults to was **incidental**. Three facts combined:
+`/etc/os-release` ships `IMAGE_ID=kiro`, and Arch's
+`/usr/lib/kernel/install.d/90-loaderentry.install` derives its sort-key from it, so **every**
+kernel got the identical `sort-key kiro`; `kiro_bootloader.create_loader()` writes
+`default <machine-id>*`, a glob matching every entry; and nothing carried the ISO's kernel
+choice into the target at all — `kiro_kernel` stored `names[0]` from `sorted(glob(...))`,
+alphabetical order, which no module read. The tie therefore fell to the version string.
+
+With a `linux-cachyos` + `linux-zen` ISO that happened to pick cachyos, the intended primary.
+It was luck: a pairing whose version strings sort the other way would boot the secondary kernel
+by default, and the October `linux` + `linux-lts` pairing is exactly such a case.
+
+`kiro_kernel` now resolves the kernel the **live session actually booted** and records it as the
+primary. In the ordinary case that is the first kernel selected in the ISO builder, because the
+live default boot entry is the primary one — so the builder's order is honoured. When a user
+picks the *fallback* live entry because the primary will not boot on their hardware, the
+installed system follows them there instead of defaulting back to the kernel that just failed.
+
+### Technical Details
+
+- **`kiro_kernel`**: new `booted_kernel_package()` reads `/usr/lib/modules/<uname -r>/pkgbase`.
+  That file is Arch's own version → package mapping and the only reliable one: the plain `linux`
+  package builds `<ver>-arch1-N`, a version string carrying no package name, so neither suffix
+  matching nor a glob can identify it. Verified against all three shapes — `7.2.4-1-cachyos` →
+  `linux-cachyos`, `7.2.4-zen2-1-zen` → `linux-zen`, `7.2.4-arch1-2` → `linux`.
+- The resolved package is written to **`/etc/kiro/primary-kernel`** in the target and stored in
+  globalstorage as `kiroKernel`, **replacing** the alphabetical `names[0]`. That closes a latent
+  bug: for a `linux-zen linux-lts` pairing the old value named `linux-lts` as "primary" while the
+  ISO's primary was `linux-zen`. It had no teeth only because nothing read the key; this change
+  makes it the value everything reads.
+- Falls back to `names[0]` with a warning if the booted package cannot be resolved or is not among
+  the kernels found on the live medium.
+- **`kiro_bootloader`**: new `set_grub_top_level()` writes
+  `GRUB_TOP_LEVEL="/boot/vmlinuz-<primary>"` into `/etc/default/grub` before either
+  `grub-mkconfig` call site. `/etc/grub.d/10_linux` moves that kernel to the front of the list,
+  and since Kiro ships `GRUB_DEFAULT=saved` — which falls back to entry 0 until the user picks
+  something — being first is what makes it the default. Rewrites rather than appends, so repeated
+  runs cannot stack duplicate keys.
+- The systemd-boot half is handled by `95-kiro-sort-key.install` in **`kiro-system-files`**.
+  `create_loader()` is deliberately **unchanged**: the `default <machine-id>*` glob resolves to
+  the first entry in sort order, so differentiating the sort-keys is enough.
+
+### Verification
+
+- **The load-bearing assumption was tested, not assumed.** `man 5 loader.conf` documents `default`
+  only as "a glob pattern to select the default entry by id" and does not say which match wins.
+  On a live two-kernel install, setting `sort-key kiro-0` on the zen entry and `kiro-1` on cachyos
+  — with `loader.conf` untouched — moved zen to the top of `bootctl list` and marked it
+  `(default)`. The glob is sort-order aware; the machine was restored to `sort-key kiro` after.
+- An explicit `default <machine-id>-<version>.conf` was rejected: the entry id embeds the kernel
+  version, so it would go stale on every kernel update and need a pacman hook to re-resolve.
+
+### Files Modified
+
+- `usr/lib/calamares/modules/kiro_kernel/main.py`
+- `usr/lib/calamares/modules/kiro_bootloader/main.py`
+
+## 2026.09.12
+
 ### `kiro_final` no longer deletes the installed kernel's mkinitcpio preset
 
 `kiro-audit` on a fresh **v26.09.12** install reported `FAIL linux.preset missing` (130 / 0 / 1).
