@@ -59,6 +59,20 @@ installed system follows them there instead of defaulting back to the kernel tha
   `(default)`. The glob is sort-order aware; the machine was restored to `sort-key kiro` after.
 - An explicit `default <machine-id>-<version>.conf` was rejected: the entry id embeds the kernel
   version, so it would go stale on every kernel update and need a pacman hook to re-resolve.
+- **The GRUB path was read out of `10_linux`, not assumed.** The variable `GRUB_TOP_LEVEL` feeds is
+  called `reverse_sorted_list`, which invites the opposite conclusion — but "reverse" refers to
+  `version_sort -r` (newest first), not to emission order: `for linux in ${reverse_sorted_list}`
+  walks it forwards, and `grub_move_to_front` prepends. Because Kiro also sets
+  `GRUB_DISABLE_SUBMENU: true`, the submenu branch at `10_linux:290` never fires and every kernel
+  is emitted at top level in list order, so the primary is menu entry 0.
+- `GRUB_DEFAULT: "saved"` becomes `set default="${saved_entry}"` (`00_header:37`, `:71`), and
+  `grubcfg.conf` sets no `GRUB_SAVEDEFAULT` — so nothing ever writes `saved_entry`. It stays empty
+  until the user chooses an entry in the menu, and GRUB boots entry 0 meanwhile. Being first is
+  therefore what makes the primary the default, on a fresh install and after every kernel upgrade.
+- `set_grub_top_level()` is called unconditionally, including on systemd-boot installs. That is
+  safe rather than sloppy: `grub 2:2.14-1` is on the ISO package list, so `/etc/default/grub` is
+  always owned by the `grub` package and the function can never leave an unowned file behind to
+  collide with a later `pacman -S grub`.
 
 ### Files Modified
 
