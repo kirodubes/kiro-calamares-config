@@ -15,10 +15,15 @@
   and is incompatible with Linux kernel security mitigations", then `WARNING: … Unpatched return thunk in use`
   with a call trace, and marked the kernel tainted (P/O/E). Wi-Fi itself still worked through iwlwifi. The
   package's blacklist file also blocks the open Broadcom drivers (brcmfmac, brcmsmac, b43, bcma) on every machine.
+- `kiro_final` now also removes GPU userspace drivers the machine can't use: `vulkan-intel` and
+  `intel-media-driver` when there's no Intel GPU, `vulkan-radeon` when there's no AMD GPU. kiro-iso ships both
+  Vulkan drivers (added 2026-10-01) so either GPU works live; an install keeps only its own vendor's, which saves
+  up to ~62 MB.
 
 ### Technical Details
-- New `has_broadcom_wifi()`: scans the **live host's** `/sys/bus/pci/devices`, not the chroot's, for vendor
-  `0x14e4` with class `0x0280xx`. Calamares runs on the hardware the installed system will boot on.
+- New `has_pci_device(vendor, class_prefix)` (generalised from the first `has_broadcom_wifi()` the same day):
+  scans the **live host's** `/sys/bus/pci/devices`, not the chroot's. Calamares runs on the hardware the
+  installed system will boot on. Broadcom = `0x14e4` + `0x0280`.
 - New "Broadcom wl cleanup" step after the VM cleanup (pacman lock already awaited), before the installer
   removes itself: Broadcom present → skip; otherwise `pacman -R --noconfirm broadcom-wl-dkms` in the target.
   Plain `-R`, not `-Rns`, so `dkms` stays for NVIDIA and VirtualBox modules. Logged in the kiro_final results table.
@@ -27,6 +32,12 @@
   showed `Broadcom wl cleanup: SUCCESS (removed broadcom-wl-dkms)`; the package and its blacklist file were gone, `wl` was not
   loaded, `/proc/sys/kernel/tainted` = 0, dkms was kept, iwlwifi scanned networks, and kiro-audit gave 132/0/0. The
   Broadcom keep-it path is checked by code review only; no Broadcom machine was available.
+- New "GPU driver cleanup" step right after it: Intel = `0x8086`, AMD = `0x1002`, class prefix `0x03`, which
+  covers VGA (0300), 3D (0302) and display (0380) controllers; the Yoga 510's Radeon R5 M330 reports as 0380.
+  Plain `-R`, so `mesa` and the Vulkan loader stay.
+- Promoted from kiro-calamares-config-next after two installs from the 18:07 -next ISO: Yoga 510 (Intel + AMD)
+  logged "GPU driver cleanup: SKIPPED (all drivers match the hardware)" with ANV + RADV in `vulkaninfo`; picard
+  (Intel only) logged "SUCCESS (removed vulkan-radeon)", kept `vulkan-intel` + `intel-media-driver`, taint 0.
 
 ### Files Modified
 - `usr/lib/calamares/modules/kiro_final/main.py`
