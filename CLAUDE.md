@@ -89,7 +89,7 @@ These live in [usr/lib/calamares/modules/](usr/lib/calamares/modules/). Each has
 | `kiro_displaymanager`| After users          | Configures the display manager and default session (replaces stock `displaymanager`)                            |
 | `kiro_ucode`         | After kiro_displaymanager | Detects CPU (AMD/Intel via hwinfo), installs bundled `.pkg.tar.zst` from `/etc/calamares/packages/`         |
 | `kiro_bootloader`    | After grubcfg        | Installs the bootloader — systemd-boot on UEFI, `grub-install --target=i386-pc` + `grub-mkconfig` on BIOS (replaces stock `bootloader`) |
-| `kiro_final`         | Before preservefiles | Permissions, skel copy, live-only file cleanup, env config, bootloader cleanup, VM package removal, self-removal |
+| `kiro_final`         | Before preservefiles | Permissions, skel copy, live-only file cleanup, env config, bootloader cleanup, VM package removal, `broadcom-wl-dkms` removal unless Broadcom Wi-Fi (PCI 14e4, class 0280) is present, self-removal |
 
 ### NVIDIA driver modes (`driver=` kernel cmdline)
 `kernel_cmdline("driver", default="free")`. Three modes drive `kiro_remove_nvidia` + `chwd` (packages checked: `nvidia-open-dkms`, `nvidia-utils`, `nvidia-settings`):

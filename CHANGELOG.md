@@ -4,6 +4,34 @@
 
 ---
 
+## 2026.10.01
+
+### What Changed
+- `kiro_final` now removes **`broadcom-wl-dkms`** from the installed system unless the machine actually has a
+  Broadcom Wi-Fi card. The driver's only hardware match is `pci:v*d*sv*sd*bc02sc80i*`, meaning *any* vendor's PCI
+  network controller of class 0280, which is how Intel, Realtek and MediaTek Wi-Fi cards identify themselves too.
+  So udev loaded the proprietary `wl` module on nearly every install. Found on the real-metal NUC "mmc" (Intel
+  Wireless 7265, v26.10.01): the kernel logged "You are using the broadcom-wl driver, which is not maintained
+  and is incompatible with Linux kernel security mitigations", then `WARNING: … Unpatched return thunk in use`
+  with a call trace, and marked the kernel tainted (P/O/E). Wi-Fi itself still worked through iwlwifi. The
+  package's blacklist file also blocks the open Broadcom drivers (brcmfmac, brcmsmac, b43, bcma) on every machine.
+
+### Technical Details
+- New `has_broadcom_wifi()`: scans the **live host's** `/sys/bus/pci/devices`, not the chroot's, for vendor
+  `0x14e4` with class `0x0280xx`. Calamares runs on the hardware the installed system will boot on.
+- New "Broadcom wl cleanup" step after the VM cleanup (pacman lock already awaited), before the installer
+  removes itself: Broadcom present → skip; otherwise `pacman -R --noconfirm broadcom-wl-dkms` in the target.
+  Plain `-R`, not `-Rns`, so `dkms` stays for NVIDIA and VirtualBox modules. Logged in the kiro_final results table.
+- The live ISO keeps the package, so Broadcom users still have Wi-Fi during the install.
+- Promoted from kiro-calamares-config-next after an install test on mmc (12:11 -next ISO, UEFI). The Calamares log
+  showed `Broadcom wl cleanup: SUCCESS (removed broadcom-wl-dkms)`; the package and its blacklist file were gone, `wl` was not
+  loaded, `/proc/sys/kernel/tainted` = 0, dkms was kept, iwlwifi scanned networks, and kiro-audit gave 132/0/0. The
+  Broadcom keep-it path is checked by code review only; no Broadcom machine was available.
+
+### Files Modified
+- `usr/lib/calamares/modules/kiro_final/main.py`
+- `CLAUDE.md`
+
 ## 2026.09.28
 
 ### What Changed
