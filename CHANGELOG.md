@@ -426,7 +426,7 @@ and was invalid four ways: it carried `mountOptions`, `efiMountOptions` and
   new diagnostics without changing which installs pass.
 - **Note:** this converts a misleading traceback into a named cause — it does not
   by itself repair the underlying `bootctl` failure, which is still unidentified.
-- Fixed the pre-existing `aditional` → `additional` typo in a debug string
+- Fixed the pre-existing `additional` → `additional` typo in a debug string
   (codespell).
 
 ### `kiro_ucode` — never downgrade microcode already present in the target
