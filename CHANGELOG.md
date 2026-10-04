@@ -4,6 +4,28 @@
 
 ---
 
+## 2026.10.04
+
+### What Changed
+- `chwd` module: the `driver=nonfreechwd` (auto-detect) boot entry now really installs legacy NVIDIA drivers.
+  Before, on a Pascal card (GTX 1050 Ti), chwd picked `nvidia-dkms-580xx.prime`, pacman stopped on
+  `libxnvctrl-580xx and libxnvctrl-615 are in conflict. Remove libxnvctrl? [y/N]`, the non-interactive run answered
+  no, and the install finished on nouveau without showing an error. The module now removes the baked `libxnvctrl`
+  before chwd runs.
+- Ported from kiro-calamares-config-next (`b13a81c`) after a full install on the MSI GP73 passed: after first boot
+  it ran `nvidia-580xx` 580.178.04 with PRIME offload working and suspend/resume clean.
+
+### Technical Details
+- `libxnvctrl` survives `kiro_remove_nvidia`'s `pacman -Rns` because `xfce4-sensors-plugin` depends on it.
+  `_drop_baked_libxnvctrl` removes it with `pacman -Rdd` inside the chroot, only on `nonfreechwd` and only when it's
+  installed. That's safe because `libxnvctrl-580xx` provides `libxnvctrl`, and current profiles pull it back in
+  through `nvidia-settings`. If chwd still fails, the module reinstalls `libxnvctrl` so `xfce4-sensors-plugin` isn't
+  left with a missing dependency on the nouveau fallback.
+- The file is identical to the `-next` copy again.
+
+### Files Modified
+- `usr/lib/calamares/modules/chwd/main.py`
+
 ## 2026.10.03
 
 ### What Changed
