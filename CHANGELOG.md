@@ -4,6 +4,32 @@
 
 ---
 
+## 2026.10.18
+
+### Installed SDDM preselects the ISO's default session
+
+**What Changed.** In a YouTube review, an ISO built with the Kiro ISO Builder (XFCE + Awesome + Qtile, default
+session XFCE) came up on the installed system with Qtile Wayland preselected in SDDM. `kiro_final` now writes the
+ISO's default session into SDDM's `state.conf`, so the greeter's first boot shows the session the builder picked.
+After that, SDDM remembers whatever the user logs into (`RememberLastSession=true`).
+
+**Technical Details.** New `preselect_sddm_session()`, run right after the X11 keymap step:
+- It reads `[Autologin] Session=` from the **live** `/etc/sddm.conf.d/kde_settings.conf`. `build-the-iso.sh`
+  writes `default_session` there, already mapped (budgie → budgie-desktop, hlwm → herbstluftwm).
+- It looks for that `.desktop` file on the target, `xsessions` first, then `wayland-sessions`.
+- It writes `[Last] Session=<path>` to `/var/lib/sddm/state.conf` and chowns `/var/lib/sddm` to `sddm`.
+- It also sets the target's `[Autologin] Session=`, which the displaymanager module had filled in from its own
+  DE priority list, so autologin uses the same choice.
+
+The cause: a fresh install had no `state.conf`, so the greeter fell back to the first entry of its session list,
+and Wayland sessions are listed first. Built and tested in kiro-calamares-config-next (`6a43a25`), then promoted
+here: two VM installs of a builder-made XFCE + Qtile ISO came up on XFCE, and after one Qtile login SDDM
+remembered Qtile.
+
+**Files Modified.** `usr/lib/calamares/modules/kiro_final/main.py`.
+
+---
+
 ## 2026.10.11
 
 ### f2fs removed from the installer's filesystem choices
