@@ -83,7 +83,7 @@ These live in [usr/lib/calamares/modules/](usr/lib/calamares/modules/). Each has
 |----------------------|----------------------|------------------------------------------------------------------------------------------------------------------|
 | `kiro_kernel`        | After unpackfs@rootfs | Detects every `vmlinuz-*` on the live medium, copies each to the target, generates a matching `mkinitcpio` preset, removes live-only preset artifacts (replaces the old `unpackfs@vmlinuz` step) |
 | `kiro_before`        | After networkcfg     | Pacman lock wait, keyring init, mkinitcpio preset rename (`kiro` → `linux.preset`), makepkg optimization         |
-| `kiro_remove_nvidia` | After kiro_before    | Reads `driver=` kernel param; removes NVIDIA on `free` + `nonfreechwd`, keeps the baked `nvidia-open-dkms` on `nonfree` |
+| `kiro_remove_nvidia` | After kiro_before    | Reads `driver=` kernel param; removes NVIDIA on `free`; on `nonfree` and `nonfreechwd` leaves it (on `nonfreechwd` the `chwd` module decides) |
 | `chwd`               | After kiro_remove_nvidia | Runs `kiro-hwd install` (Kiro's NVIDIA picker, replaced CachyOS chwd 2026-11-03; fetched from `[nemesis_repo]` if the ISO lacks it) **only** on `driver=nonfreechwd`; picks the right driver for the detected GPU      |
 | `kiro_packages`      | After services-systemd | Installs the package selection, then removes installer-only packages post-install (replaces stock `packages@choice`) |
 | `kiro_displaymanager`| After users          | Configures the display manager and default session (replaces stock `displaymanager`)                            |
@@ -95,7 +95,7 @@ These live in [usr/lib/calamares/modules/](usr/lib/calamares/modules/). Each has
 `kernel_cmdline("driver", default="free")`. Three modes drive `kiro_remove_nvidia` + `chwd` (packages checked: `nvidia-open-dkms`, `nvidia-utils`, `nvidia-settings`):
 - **`free`** (default) — `kiro_remove_nvidia` removes the NVIDIA packages; chwd skipped → mesa / open stack.
 - **`nonfree`** — both modules skip; the baked `nvidia-open-dkms` is kept untouched (proven express lane for modern Turing+ GPUs).
-- **`nonfreechwd`** — `kiro_remove_nvidia` removes the baked NVIDIA packages first (clean slate) unless `kiro-hwd install --dry-run` in the target lists every one of them (nvidia-open ISO on a Turing+ card: keeping them saves a ~4-minute double DKMS build; dry-run failure → remove as before), then `kiro-hwd install` installs the driver it picks: nvidia-open (Turing+), 580xx (Maxwell/Pascal/Volta), or nothing for Kepler and older (they stay on nouveau; on a 470xx ISO pick `nonfree` to keep the baked driver) with nothing to conflict.
+- **`nonfreechwd`** — `kiro_remove_nvidia` leaves the baked NVIDIA packages alone; the `chwd` module decides once kiro-hwd is in the target (it isn't before: the ISO doesn't ship it, so a dry run in `kiro_remove_nvidia` always failed with exit 127). After the upgrade and the kiro-hwd install it keeps them when `kiro-hwd install --dry-run` lists every one (nvidia-open ISO on a Turing+ card: saves a ~4-minute double DKMS build), else removes them (also on every early exit, so a failed run ends on the open driver), then `kiro-hwd install` installs the driver it picks: nvidia-open (Turing+), 580xx (Maxwell/Pascal/Volta), or nothing for Kepler and older (they stay on nouveau; on a 470xx ISO pick `nonfree` to keep the baked driver) with nothing to conflict.
 
 ### VM Detection (kiro_final)
 Uses `systemd-detect-virt` and removes packages for VMs you are **not** running in. The set-based logic:
