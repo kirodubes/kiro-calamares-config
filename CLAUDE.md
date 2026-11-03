@@ -95,7 +95,7 @@ These live in [usr/lib/calamares/modules/](usr/lib/calamares/modules/). Each has
 `kernel_cmdline("driver", default="free")`. Three modes drive `kiro_remove_nvidia` + `chwd` (packages checked: `nvidia-open-dkms`, `nvidia-utils`, `nvidia-settings`):
 - **`free`** (default) — `kiro_remove_nvidia` removes the NVIDIA packages; chwd skipped → mesa / open stack.
 - **`nonfree`** — both modules skip; the baked `nvidia-open-dkms` is kept untouched (proven express lane for modern Turing+ GPUs).
-- **`nonfreechwd`** — `kiro_remove_nvidia` removes the baked NVIDIA packages first (clean slate), then `kiro-hwd install` installs the driver it picks: nvidia-open (Turing+), 580xx (Maxwell/Pascal/Volta), or nothing for Kepler and older (they stay on nouveau; on a 470xx ISO pick `nonfree` to keep the baked driver) with nothing to conflict.
+- **`nonfreechwd`** — `kiro_remove_nvidia` removes the baked NVIDIA packages first (clean slate) unless `kiro-hwd install --dry-run` in the target lists every one of them (nvidia-open ISO on a Turing+ card: keeping them saves a ~4-minute double DKMS build; dry-run failure → remove as before), then `kiro-hwd install` installs the driver it picks: nvidia-open (Turing+), 580xx (Maxwell/Pascal/Volta), or nothing for Kepler and older (they stay on nouveau; on a 470xx ISO pick `nonfree` to keep the baked driver) with nothing to conflict.
 
 ### VM Detection (kiro_final)
 Uses `systemd-detect-virt` and removes packages for VMs you are **not** running in. The set-based logic:
