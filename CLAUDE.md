@@ -66,7 +66,7 @@ partition → mount
 → services-systemd → kiro_packages
 → removeuser → users → kiro_displaymanager
 → kiro_ucode → grubcfg → kiro_bootloader
-→ kiro_final → preservefiles → umount
+→ kiro_final → preservefiles → kiro_strip_secrets → umount
 ```
 
 **Finish phase:** `finished` page.
@@ -90,6 +90,7 @@ These live in [usr/lib/calamares/modules/](usr/lib/calamares/modules/). Each has
 | `kiro_ucode`         | After kiro_displaymanager | Detects CPU (AMD/Intel via hwinfo), installs bundled `.pkg.tar.zst` from `/etc/calamares/packages/`         |
 | `kiro_bootloader`    | After grubcfg        | Installs the bootloader — systemd-boot on UEFI, `grub-install --target=i386-pc` + `grub-mkconfig` on BIOS (replaces stock `bootloader`) |
 | `kiro_final`         | Before preservefiles | Permissions, skel copy, live-only file cleanup, env config, bootloader cleanup, VM package removal, `broadcom-wl-dkms` removal unless Broadcom Wi-Fi (PCI 14e4, class 0280) is present, self-removal |
+| `kiro_strip_secrets` | After preservefiles  | Blanks every non-empty `*password*` / `*passphrase*` string (recursive, incl. `partitions[].luksPassphrase`) in `/var/log/Calamares-install.json`. Calamares only XOR-obscures them and the file stays 0644 on purpose, so the values go and the keys stay. Never fails the install |
 
 ### NVIDIA driver modes (`driver=` kernel cmdline)
 `kernel_cmdline("driver", default="free")`. Three modes drive `kiro_remove_nvidia` + `chwd` (packages checked: `nvidia-open-dkms`, `nvidia-utils`, `nvidia-settings`):

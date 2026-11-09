@@ -1,6 +1,32 @@
 # CHANGELOG — kiro-calamares-config
 
-> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_bootloader`, `kiro_displaymanager`, `kiro_final`, `kiro_kernel`, `kiro_packages`, `kiro_remove_nvidia`, `kiro_ucode`.
+> Calamares graphical installer configuration. Custom Python modules: `kiro_before`, `kiro_bootloader`, `kiro_displaymanager`, `kiro_final`, `kiro_kernel`, `kiro_packages`, `kiro_remove_nvidia`, `kiro_strip_secrets`, `kiro_ucode`.
+
+---
+
+## 2026.11.09
+
+### What Changed
+- The installer no longer leaves the login password in `/var/log/Calamares-install.json`. Calamares only
+  XOR-obscures it (it reverses in one line), the file is world-readable on purpose so installs can be checked
+  without sudo, and root uses the same password by default, so any local account could recover the root password.
+  A new `kiro_strip_secrets` job blanks the values; the keys and true/false flags stay.
+- Promoted from kiro-calamares-config-next after a VirtualBox install test: `password` and `luksPassphrase` were
+  empty, kiro-audit 138 PASS / 0 WARN / 0 FAIL.
+
+### Technical Details
+- New Python job module runs right after `preservefiles` (which writes the file) and before `umount`. It walks the
+  JSON recursively and blanks every non-empty string whose key contains `password` or `passphrase`, including
+  `partitions[].luksPassphrase`.
+- A read or parse error only logs a warning, so a log file can never fail the install at its last step.
+- Installs made before this fix keep the old file; they are not cleaned up.
+
+### Files Modified
+- `usr/lib/calamares/modules/kiro_strip_secrets/main.py` (new)
+- `usr/lib/calamares/modules/kiro_strip_secrets/module.desc` (new)
+- `etc/calamares/settings.conf`
+- `CLAUDE.md`
+- `CHANGELOG.md`
 
 ---
 
