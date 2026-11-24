@@ -4,6 +4,22 @@
 
 ---
 
+## 2026.11.24
+
+### What Changed
+- **The systemd-boot menu uses the screen's highest text resolution** (`console-mode max` instead of `keep`), so it
+  is sharp instead of the firmware's stretched default mode. CachyOS made the same switch in 2611 (#299).
+
+### Technical Details
+- One entry in `kiro_bootloader.conf` → `loaderEntries`, written to the installed system's `loader.conf`. UEFI
+  installs only; GRUB/BIOS installs are not affected.
+- Tested first in kiro-calamares-config-next (f75e382): UEFI install in the Kiro-next VirtualBox VM, menu centered
+  and sharp. Promoted to production the same day on Erik's call so the kiro-iso build can test it on real hardware
+  (riker); if a 4K screen or a laptop firmware shows tiny text or a garbled menu, set both configs back to `keep`.
+
+### Files Modified
+- `etc/calamares/modules/kiro_bootloader.conf`, `CHANGELOG.md`
+
 ## 2026.11.09
 
 ### What Changed
