@@ -4,6 +4,23 @@
 
 ---
 
+## 2026.11.28
+
+### What Changed
+- **"Encrypt system" is harder to miss** (from kiro-calamares-config-next, after three passing test installs). On the
+  Erase disk page the checkbox is now bold, larger and Kiro blue. With the Calamares Tweak Tool set to encryption on,
+  it is already ticked; the passphrase is still asked.
+
+### Technical Details
+- `partition.conf` gains `preCheckEncryption: false` (an upstream key; CTT sets it to `true` together with
+  `enableLuksAutomatedPartitioning`). The branding stylesheet adds `#m_encryptCheckBox { font: bold 18px; color: #0195F7; }`.
+- Both files are now identical to kiro-calamares-config-next. Tested there on 2026-11-28 (VirtualBox UEFI, kiro-iso-next):
+  pre-ticked and easy to see, install went out as LUKS2.
+- Pairs with calamares 0002/0003 (KIRO-PKG-BUILD-CALAMARES) and kiro-calamares-tweak-tool 26.11-03.
+
+### Files Modified
+- `etc/calamares/modules/partition.conf`, `etc/calamares/branding/kiro/stylesheet.qss`, `CHANGELOG.md`
+
 ## 2026.11.27
 
 ### What Changed
